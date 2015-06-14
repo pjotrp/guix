@@ -75,31 +75,46 @@
                           (string-append "--with-libgcrypt-prefix="
                                          (assoc-ref %build-inputs
                                                     "libgcrypt")))
-       #:phases (alist-cons-before
-                 'configure 'copy-bootstrap-guile
-                 (lambda* (#:key system inputs #:allow-other-keys)
-                   (define (boot-guile-version arch)
-                     (if (string=? "armhf" arch)
-                         "2.0.11"
-                         "2.0.9"))
+       #:phases (modify-phases %standard-phases
+                  (add-before
+                   'configure 'copy-bootstrap-guile
+                   (lambda* (#:key system inputs #:allow-other-keys)
+                     (define (boot-guile-version arch)
+                       (if (string=? "armhf" arch)
+                           "2.0.11"
+                           "2.0.9"))
 
-                   (define (copy arch)
-                     (let ((guile  (assoc-ref inputs
-                                              (string-append "boot-guile/"
-                                                             arch)))
-                           (target (string-append "gnu/packages/bootstrap/"
-                                                  arch "-linux/"
-                                                  "/guile-"
-                                                  (boot-guile-version arch)
-                                                  ".tar.xz")))
-                       (copy-file guile target)))
+                     (define (copy arch)
+                       (let ((guile  (assoc-ref inputs
+                                                (string-append "boot-guile/"
+                                                               arch)))
+                             (target (string-append "gnu/packages/bootstrap/"
+                                                    arch "-linux/"
+                                                    "/guile-"
+                                                    (boot-guile-version arch)
+                                                    ".tar.xz")))
+                         (copy-file guile target)))
 
-                   (copy "i686")
-                   (copy "x86_64")
-                   (copy "mips64el")
-                   (copy "armhf")
-                   #t)
-                 %standard-phases)))
+                     (copy "i686")
+                     (copy "x86_64")
+                     (copy "mips64el")
+                     (copy "armhf")
+                     #t))
+                  (add-after
+                   'install 'wrap-program
+                   (lambda* (#:key inputs outputs #:allow-other-keys)
+                     ;; Make sure the 'guix' command finds GnuTLS and
+                     ;; Guile-JSON automatically.
+                     (let* ((out    (assoc-ref outputs "out"))
+                            (json   (assoc-ref inputs "guile-json"))
+                            (gnutls (assoc-ref inputs "gnutls"))
+                            (path   (string-append
+                                     json "/share/guile/site/2.0:"
+                                     gnutls "/share/guile/site/2.0")))
+                       (wrap-program (string-append out "/bin/guix")
+                         `("GUILE_LOAD_PATH" ":" prefix (,path))
+                         `("GUILE_LOAD_COMPILED_PATH" ":" prefix (,path)))
+                       #t))))))
     (native-inputs `(("pkg-config" ,pkg-config)
                      ("emacs" ,emacs-no-x)))      ;for guix.el
     (inputs
