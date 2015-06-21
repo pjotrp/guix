@@ -392,3 +392,25 @@ specified in a \"Gemfile\", as well as their dependencies.")
 User Agents.")
     (home-page "https://github.com/gshutler/useragent")
     (license license:expat)))
+
+(define-public once-only
+  (package
+    (name "ruby-log4r")
+    (version "0.2.2")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append
+		    "https://github.com/pjotrp/once-only/archive/v"
+                    version ".tar.gz"))
+              (file-name (string-append name "-" version ".tar.gz"))
+              (sha256
+               (base32
+                "0cqs50a0b99kjd19xpln8jpnki07cjyp3l7wxbfr44ycasr6nznh"))))
+    (build-system ruby-build-system)
+    ;;; (native-inputs
+    ;;; `(("ruby-minitest" ,ruby-minitest)))
+    (synopsis "ht")
+    (description "Slop provides a Ruby domain specific language for gathering
+options and parsing command line flags.")
+    (home-page "https://github.com/leejarvis/slop")
+    (license license:expat)))
