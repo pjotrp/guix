@@ -177,6 +177,41 @@ announcement.")
     (home-page "http://www.zenspider.com/projects/hoe.html")
     (license license:expat)))
 
+(define-public ruby-rake-compiler
+  (package
+    (name "ruby-rake-compiler")
+    (version "0.9.5")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "https://github.com/rake-compiler/rake-compiler/archive/v"
+                                  version ".tar.gz"))
+              (file-name (string-append name "-" version ".tar.gz"))
+              (sha256
+               (base32
+                "07lk1vl0jqcaqwjjhmg0qshqwcxdyr5kscc9xxm13m03835xgpf3"))
+    (snippet
+     '(begin
+	;; Remove test files (dependencies do not resolve right now)
+	(delete-file "tasks/cucumber.rake")
+	(delete-file "tasks/rspec.rake")))))
+    (build-system ruby-build-system)
+    (arguments
+     '(
+       #:tests? #f
+       #:phases (alist-replace
+                 'build
+                 (lambda _ (zero? (system* "rake" "gem")))
+                 %standard-phases))
+
+     )
+    (synopsis "Building and packaging of Ruby extensions")
+    (description "A productivity tool for Ruby developers. Its goal is
+to make the busy developer's life easier by simplifying the building
+and packaging of Ruby extensions by simplifying code and reducing
+duplication.")
+    (home-page "https://github.com/rake-compiler/rake-compiler")
+    (license license:x11)))
+
 (define-public ruby-i18n
   (package
     (name "ruby-i18n")
@@ -499,6 +534,38 @@ interface for Ruby programs.")
 using Net::HTTP, supporting reconnection and retry according to RFC 2616.")
     (home-page "https://github.com/drbrain/net-http-persistent")
     (license license:expat)))
+
+(define-public ruby-nokogiri
+  (package
+    (name "ruby-nokogiri")
+    (version "1.6.6.2")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append
+		    "https://github.com/sparklemotion/nokogiri/archive/v"
+                    version ".tar.gz"))
+              (file-name (string-append name "-" version ".tar.gz"))
+              (sha256
+               (base32
+                "1dpmmxr8azbyvhhmw9hpyk3dds577vsd6c312gh2s7kgjd98nd9j"))))
+    (build-system ruby-build-system)
+    (arguments
+     '(
+       #:tests? #f
+       #:phases (alist-replace
+                 'build
+                 (lambda _ (zero? (system* "rake" "gem")))
+                 %standard-phases))
+
+     )
+     ; : env C_INCLUDE_PATH=$HOME/.guix-profile/include gem install --local nokogiri-1.6.6.2.20150629081149.gem -- --use-system-libraries --with-xml2-include=$HOME/.guix-profile/include/libxml2 --with-xslt-include=$HOME/.guix-profile/include/libxslt --with-xml2-lib=$HOME/.guix-profile/lib --with-xslt-lib=$HOME/.guix-profile/lib --with-opt-include=$HOME/.guix-profile/include
+    (native-inputs
+     `(("ruby-hoe" ,ruby-hoe)
+       ("ruby-rake-compiler", ruby-rake-compiler)))
+    (synopsis "Nokogiri (鋸) is an HTML, XML, SAX, and Reader parser")
+    (description "Nokogiri parses and searches XML/HTML very quickly, and also has correctly implemented CSS3 selector support as well as XPath 1.0 support.")
+    (home-page "http://www.nokogiri.org/")
+    (license license:x11)))
 
 (define-public ruby-minitest
   (package
