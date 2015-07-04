@@ -205,7 +205,7 @@ announcement.")
      )
     (native-inputs
      `(("ruby-rspec" ,ruby-rspec)))
-    (synopsis "Building and packaging of Ruby extensions")
+    (synopsis "Building and packaging helper for Ruby extensions")
     (description "A productivity tool for Ruby developers. Its goal is
 to make the busy developer's life easier by simplifying the building
 and packaging of Ruby extensions by simplifying code and reducing
