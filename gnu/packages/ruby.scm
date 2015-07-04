@@ -191,9 +191,8 @@ announcement.")
                 "07lk1vl0jqcaqwjjhmg0qshqwcxdyr5kscc9xxm13m03835xgpf3"))
     (snippet
      '(begin
-	;; Remove test files (dependencies do not resolve right now)
-	(delete-file "tasks/cucumber.rake")
-	(delete-file "tasks/rspec.rake")))))
+	;; Remove cucumber test file (dependencies do not resolve right now)
+	(delete-file "tasks/cucumber.rake")))))
     (build-system ruby-build-system)
     (arguments
      '(
@@ -204,6 +203,8 @@ announcement.")
                  %standard-phases))
 
      )
+    (native-inputs
+     `(("ruby-rspec" ,ruby-rspec)))
     (synopsis "Building and packaging of Ruby extensions")
     (description "A productivity tool for Ruby developers. Its goal is
 to make the busy developer's life easier by simplifying the building
