@@ -183,35 +183,29 @@ announcement.")
     (version "0.9.5")
     (source (origin
               (method url-fetch)
-              (uri (string-append "https://github.com/rake-compiler/rake-compiler/archive/v"
-                                  version ".tar.gz"))
+              (uri (string-append
+                    "https://github.com/rake-compiler/rake-compiler/archive/v"
+                    version ".tar.gz"))
               (file-name (string-append name "-" version ".tar.gz"))
               (sha256
                (base32
-                "07lk1vl0jqcaqwjjhmg0qshqwcxdyr5kscc9xxm13m03835xgpf3"))
-    (snippet
-     '(begin
-	;; Remove cucumber test file (dependencies do not resolve right now)
-	(delete-file "tasks/cucumber.rake")))))
+                "07lk1vl0jqcaqwjjhmg0qshqwcxdyr5kscc9xxm13m03835xgpf3"))))
     (build-system ruby-build-system)
     (arguments
-     '(
-       #:tests? #f
-       #:phases (alist-replace
-                 'build
-                 (lambda _ (zero? (system* "rake" "gem")))
-                 %standard-phases))
-
-     )
-    (native-inputs
-     `(("ruby-rspec" ,ruby-rspec)))
-    (synopsis "Building and packaging helper for Ruby extensions")
-    (description "A productivity tool for Ruby developers. Its goal is
-to make the busy developer's life easier by simplifying the building
-and packaging of Ruby extensions by simplifying code and reducing
-duplication.")
+     '(#:tests? #f ; needs cucumber
+       #:phases (modify-phases %standard-phases
+                  (add-before 'build 'remove-cucumber-rake-task
+                    (lambda _
+                      ;; Remove cucumber test file because the
+                      ;; dependencies are not available right now.
+                      (delete-file "tasks/cucumber.rake")))
+                  (replace 'build
+                    (lambda _ (zero? (system* "rake" "gem")))))))
+    (synopsis "Building and packaging helper for Ruby native extensions")
+    (description "Rake-compiler proivides a framework for building and
+packaging native C and Java extensions in Ruby.")
     (home-page "https://github.com/rake-compiler/rake-compiler")
-    (license license:x11)))
+    (license license:expat)))
 
 (define-public ruby-i18n
   (package

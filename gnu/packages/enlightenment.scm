@@ -50,14 +50,14 @@
 (define-public efl
   (package
     (name "efl")
-    (version "1.13.0")
+    (version "1.14.2")
     (source (origin
               (method url-fetch)
               (uri (string-append
-                    "http://download.enlightenment.org/rel/libs/efl/efl-"
-                    version ".tar.gz"))
+                    "https://download.enlightenment.org/rel/libs/efl/efl-"
+                    version ".tar.xz"))
               (sha256
-               (base32 "0mwkxsfi5masiy6qfmdqy1j15cfz7nz8g8jq2bf3w501rpa9gxvz"))))
+               (base32 "0kg51v63ljq1z4dj65aiyxaqhq54gkl4hx53ifwbci6ihammandr"))))
     (build-system gnu-build-system)
     (native-inputs
      `(("pkg-config" ,pkg-config)))
@@ -131,15 +131,15 @@ removable devices or support for multimedia.")
 (define-public elementary
   (package
     (name "elementary")
-    (version "1.13.0")
+    (version "1.14.2")
     (source (origin
               (method url-fetch)
               (uri
                (string-append
-                "http://download.enlightenment.org/rel/libs/elementary/elementary-"
-                version ".tar.gz"))
+                "https://download.enlightenment.org/rel/libs/elementary/elementary-"
+                version ".tar.xz"))
               (sha256
-               (base32 "133p4yaynmy37yhk2gxwlc8a2n2wy7cbh4rd7nsnl5929wqb9waj"))))
+               (base32 "1ck1jm9dfx2l72nklndqjfsxjqb0024b88naskld1dk9b8drs76b"))))
     (build-system gnu-build-system)
     (native-inputs
      `(("pkg-config" ,pkg-config)))
@@ -156,7 +156,7 @@ full capabilities of EFL.")
 (define-public evas-generic-loaders
   (package
     (name "evas-generic-loaders")
-    (version "1.13.2")
+    (version "1.14.0")
     (source (origin
               (method url-fetch)
               (uri
@@ -165,7 +165,7 @@ full capabilities of EFL.")
                 "evas_generic_loaders/evas_generic_loaders-"
                 version ".tar.xz"))
               (sha256
-               (base32 "1z5vjabs3psvqs3251mpyl1wgbdv1grn30yf682vamdqc5ckfa69"))))
+               (base32 "18b6xmbf81bly4mlwlzwr17g2m8dzznbhsdjk6pbb3nw4wn3y88l"))))
     (build-system gnu-build-system)
     (native-inputs
      `(("pkg-config" ,pkg-config)))
@@ -187,15 +187,15 @@ files in Evas (EFL canvas library).")
 (define-public emotion-generic-players
   (package
     (name "emotion-generic-players")
-    (version "1.13.0")
+    (version "1.14.0")
     (source (origin
               (method url-fetch)
               (uri
                (string-append
-                "http://download.enlightenment.org/rel/libs/emotion_generic_players/emotion_generic_players-"
-                version ".tar.gz"))
+                "https://download.enlightenment.org/rel/libs/emotion_generic_players/emotion_generic_players-"
+                version ".tar.xz"))
               (sha256
-               (base32 "0gin3cjhfj75v0gjsvv7harbj4fs4r7r1sfi74ncxzna71nrd8r3"))))
+               (base32 "0685jzag98ykknycfdqn70zif3fmcfi6m8k9yp6d79r1h8gc49n4"))))
     (build-system gnu-build-system)
     (native-inputs
      `(("pkg-config" ,pkg-config)))
@@ -218,7 +218,7 @@ The only supported now is VLC.")
               (method url-fetch)
               (uri
                (string-append
-                "http://download.enlightenment.org/rel/apps/terminology/terminology-"
+                "https://download.enlightenment.org/rel/apps/terminology/terminology-"
                 version ".tar.gz"))
               (sha256
                (base32 "0a767ixackzmhb2awrhjy7q6vsivsd54wc434i617xiw095x843s"))))
@@ -240,15 +240,15 @@ contents and more.")
 (define-public enlightenment
   (package
     (name "enlightenment")
-    (version "0.19.4")
+    (version "0.19.5")
     (source (origin
               (method url-fetch)
               (uri
                (string-append
-                "http://download.enlightenment.org/rel/apps/enlightenment/enlightenment-"
-                version ".tar.gz"))
+                "https://download.enlightenment.org/rel/apps/enlightenment/enlightenment-"
+                version ".tar.xz"))
               (sha256
-               (base32 "01pg3ng4m3vmwzzivlssdmvhf72bsvcmm3xwf45849cibllaib8v"))))
+               (base32 "0j66x7x76fbgqfw6fi77v8qy50slw3jnsq3vvs82rrfvniabm8wc"))))
     (build-system gnu-build-system)
     (native-inputs
      `(("pkg-config" ,pkg-config)))
