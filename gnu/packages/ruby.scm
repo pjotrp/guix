@@ -34,6 +34,7 @@
   #:use-module (guix git-download)
   #:use-module (guix utils)
   #:use-module (guix build-system gnu)
+  #:use-module (gnu packages xml)
   #:use-module (guix build-system ruby))
 
 (define-public ruby
@@ -549,14 +550,19 @@ using Net::HTTP, supporting reconnection and retry according to RFC 2616.")
        #:tests? #f
        #:phases (alist-replace
                  'build
-                 (lambda _ (zero? (system* "rake" "gem")))
-                 %standard-phases))
-
-     )
+                 (lambda _
+		   (system* "rake" "gem")
+		   (zero? (system* "rake" "gem")))
+                 %standard-phases)))
      ; : env C_INCLUDE_PATH=$HOME/.guix-profile/include gem install --local nokogiri-1.6.6.2.20150629081149.gem -- --use-system-libraries --with-xml2-include=$HOME/.guix-profile/include/libxml2 --with-xslt-include=$HOME/.guix-profile/include/libxslt --with-xml2-lib=$HOME/.guix-profile/lib --with-xslt-lib=$HOME/.guix-profile/lib --with-opt-include=$HOME/.guix-profile/include
     (native-inputs
      `(("ruby-hoe" ,ruby-hoe)
        ("ruby-rake-compiler", ruby-rake-compiler)))
+    (inputs
+     `(("zlib" ,zlib)
+       ("libxml2" ,libxml2)
+       ("libxslt" ,libxslt)))
+
     (synopsis "Nokogiri (鋸) is an HTML, XML, SAX, and Reader parser")
     (description "Nokogiri parses and searches XML/HTML very quickly, and also has correctly implemented CSS3 selector support as well as XPath 1.0 support.")
     (home-page "http://www.nokogiri.org/")
