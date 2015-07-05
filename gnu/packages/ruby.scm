@@ -200,8 +200,9 @@ announcement.")
                       ;; Remove cucumber test file because the
                       ;; dependencies are not available right now.
                       (delete-file "tasks/cucumber.rake")))
-                  (replace 'build
-                    (lambda _ (zero? (system* "rake" "gem")))))))
+                      ;; (replace 'build
+		      ;;    (lambda _ (zero? (system* "rake" "gem"))))
+				   )))
     (synopsis "Building and packaging helper for Ruby native extensions")
     (description "Rake-compiler proivides a framework for building and
 packaging native C and Java extensions in Ruby.")
@@ -551,6 +552,7 @@ using Net::HTTP, supporting reconnection and retry according to RFC 2616.")
        #:phases (alist-replace
                  'build
                  (lambda _
+		   ;; calling rake gem 2x gets a gem
 		   (system* "rake" "gem")
 		   (zero? (system* "rake" "gem")))
                  %standard-phases)))

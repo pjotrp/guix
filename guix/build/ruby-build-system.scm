@@ -49,7 +49,10 @@ directory."
 
 (define build
   (lambda _
-    (zero? (system* "gem" "build" (first-matching-file "\\.gemspec$")))))
+    (let* ((fnlist (find-files "." "\\.gemspec$")))
+      (if (null? fnlist)
+	  (zero? (system* "rake" "gem"))
+	  (zero? (system* "gem" "build" (string-append (car fnlist))))))))
 
 (define* (check #:key tests? test-target #:allow-other-keys)
   (if tests?
