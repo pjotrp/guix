@@ -555,7 +555,13 @@ using Net::HTTP, supporting reconnection and retry according to RFC 2616.")
 		   ;; calling rake gem 2x gets a gem
 		   (system* "rake" "gem")
 		   (zero? (system* "rake" "gem")))
-                 %standard-phases)))
+		 (alist-replace
+		  'install
+		  (lambda* (#:key inputs #:allow-other-keys)
+		    (let ((libxml2 (assoc-ref inputs "libxml2")))
+		      (zero? (system* "gem" "install" "--local" "pkg/nokogiri-1.6.6.2.gem" "--" "--use-system-libraries" ))
+		      ))
+                 %standard-phases))))
      ; : env C_INCLUDE_PATH=$HOME/.guix-profile/include gem install --local nokogiri-1.6.6.2.20150629081149.gem -- --use-system-libraries --with-xml2-include=$HOME/.guix-profile/include/libxml2 --with-xslt-include=$HOME/.guix-profile/include/libxslt --with-xml2-lib=$HOME/.guix-profile/lib --with-xslt-lib=$HOME/.guix-profile/lib --with-opt-include=$HOME/.guix-profile/include
     (native-inputs
      `(("ruby-hoe" ,ruby-hoe)
