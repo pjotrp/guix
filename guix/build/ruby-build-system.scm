@@ -76,7 +76,8 @@ directory."
       (zero? (system* "gem" "install" "--local"
 		      (first-matching-file "\\.gem$")
 		      ;; Executables should go into /bin, not /lib/ruby/gems.
-		      "--bindir" (string-append out "/bin") "--" x
+		      "--bindir" (string-append out "/bin") "--"
+		      (if (null? gem-flags)(string-join '())(string-join gem-flags))
 					; (if (null? gem-flags) (" ")(string-join gem-flags))
 		      )))))
 
