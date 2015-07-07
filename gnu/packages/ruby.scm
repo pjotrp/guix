@@ -551,7 +551,7 @@ using Net::HTTP, supporting reconnection and retry according to RFC 2616.")
     (arguments
      '(
        #:tests? #f  ;; FIXME; needs build-flags to succeed
-       #:gem-flags (list (string-append "--with-xml2-include=" (assoc-ref %build-inputs "libxml2") "/include/libxml2" ))
+       #:gem-flags (list "--use-system-libraries" (string-append "--with-xml2-include=" (assoc-ref %build-inputs "libxml2") "/include/libxml2" ))
        #:phases (alist-replace
                  'build
                  (lambda _
