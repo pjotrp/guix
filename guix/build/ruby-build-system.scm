@@ -59,7 +59,7 @@ directory."
       (zero? (system* "rake" test-target))
       #t))
 
-(define* (install #:key source inputs outputs
+(define* (install #:key source inputs outputs (gem-flags "")
 		  #:allow-other-keys
 		  )
   (let* ((ruby-version
@@ -70,10 +70,12 @@ directory."
          (gem-home (string-append out "/lib/ruby/gems/" ruby-version ".0")))
     (setenv "GEM_HOME" gem-home)
     (mkdir-p gem-home)
+    ; (error "hello" gem-flags)
     (zero? (system* "gem" "install" "--local"
                     (first-matching-file "\\.gem$")
                     ;; Executables should go into /bin, not /lib/ruby/gems.
-                    "--bindir" (string-append out "/bin")))))
+                    "--bindir" (string-append out "/bin") "--" gem-flags
+		    ))))
 
 (define %standard-phases
   (modify-phases gnu:%standard-phases

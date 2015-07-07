@@ -559,10 +559,13 @@ using Net::HTTP, supporting reconnection and retry according to RFC 2616.")
 		   (zero? (system* "rake" "gem")))
 		 (alist-replace
 		  'install
-		  (lambda* (#:key outputs #:allow-other-keys #:rest args)
-			   (let ((out (assoc-ref outputs "out"))
-				 (install (assoc-ref %standard-phases 'install)))
-			     (apply install args)))
+		  (lambda* (#:key inputs outputs #:allow-other-keys #:rest args)
+			   (let* ((out (assoc-ref outputs "out"))
+				  (libxml2 (assoc-ref inputs "libxml2"))
+				  (gem-flags (string-append "--use-system-libraries --with-xml2-include=" libxml2 "/include/libxml2" ))
+				  (install (assoc-ref %standard-phases 'install))
+				  )
+			     (apply install #:gem-flags gem-flags args)))
 		  %standard-phases))))
 		 ; (alist-replace
 		 ;  'install
