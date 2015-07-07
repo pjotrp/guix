@@ -550,7 +550,7 @@ using Net::HTTP, supporting reconnection and retry according to RFC 2616.")
     (build-system ruby-build-system)
     (arguments
      '(
-       #:tests? #f  ;; FIXME; needs build-flags to succeed
+       #:tests? #f  ;; test fails because nokogiri can only test with a built extension (now part of install phase)
        #:gem-flags (list "--use-system-libraries" (string-append "--with-xml2-include=" (assoc-ref %build-inputs "libxml2") "/include/libxml2" ))
        #:phases (alist-replace
                  'build
