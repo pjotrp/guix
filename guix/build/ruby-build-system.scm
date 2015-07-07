@@ -73,8 +73,9 @@ directory."
 		    (first-matching-file "\\.gem$")
 		    ;; Executables should go into /bin, not /lib/ruby/gems.
 		    "--bindir" (string-append out "/bin") "--"
-		    (string-join (cond (null? gem-flags)('())(gem-flags)))
+		    (string-join (cond (null? gem-flags)('())(gem-flags)))  
 		    ))))
+
 
 (define %standard-phases
   (modify-phases gnu:%standard-phases
