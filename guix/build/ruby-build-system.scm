@@ -59,7 +59,7 @@ directory."
       (zero? (system* "rake" test-target))
       #t))
 
-(define* (install #:key source inputs outputs (gem-flags "")
+(define* (install #:key source inputs outputs (gem-flags '())
 		  #:allow-other-keys)
   (let* ((ruby-version
           (match:substring (string-match "ruby-(.*)\\.[0-9]$"
