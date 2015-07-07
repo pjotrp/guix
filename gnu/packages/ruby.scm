@@ -550,24 +550,15 @@ using Net::HTTP, supporting reconnection and retry according to RFC 2616.")
     (build-system ruby-build-system)
     (arguments
      '(
-       #:tests? #f
+       #:tests? #f  ;; FIXME; needs build-flags to succeed
+       #:gem-flags (list (string-append "--with-xml2-include=" (assoc-ref %build-inputs "libxml2") "/include/libxml2" ))
        #:phases (alist-replace
                  'build
                  (lambda _
-		   ;; calling rake gem 2x gets a gem
+		   ;; calling rake gem 2x begets a gem
 		   (system* "rake" "gem")
 		   (zero? (system* "rake" "gem")))
-		 (alist-replace
-		  'install
-		  (lambda* (#:key inputs outputs #:allow-other-keys #:rest args)
-			   (let* ((out (assoc-ref outputs "out"))
-				  (libxml2 (assoc-ref inputs "libxml2"))
-				  (gem-flags (string-append
-					      "--use-system-libraries --with-xml2-include="
-					      libxml2 "/include/libxml2"))
-				  (install (assoc-ref %standard-phases 'install)))
-			     (apply install #:gem-flags gem-flags args)))
-		  %standard-phases))))
+		  %standard-phases)))
     (native-inputs
      `(("ruby-hoe" ,ruby-hoe)
        ("ruby-rake-compiler", ruby-rake-compiler)))
