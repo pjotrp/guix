@@ -562,17 +562,12 @@ using Net::HTTP, supporting reconnection and retry according to RFC 2616.")
 		  (lambda* (#:key inputs outputs #:allow-other-keys #:rest args)
 			   (let* ((out (assoc-ref outputs "out"))
 				  (libxml2 (assoc-ref inputs "libxml2"))
-				  (gem-flags (string-append "--use-system-libraries --with-xml2-include=" libxml2 "/include/libxml2" ))
-				  (install (assoc-ref %standard-phases 'install))
-				  )
+				  (gem-flags (string-append
+					      "--use-system-libraries --with-xml2-include="
+					      libxml2 "/include/libxml2"))
+				  (install (assoc-ref %standard-phases 'install)))
 			     (apply install #:gem-flags gem-flags args)))
 		  %standard-phases))))
-		 ; (alist-replace
-		 ;  'install
-		 ;  (lambda* (#:key inputs #:allow-other-keys)
-		 ;    (let ((libxml2 (assoc-ref inputs "libxml2")))
-		 ;      (zero? (system* "gem" "install" "--install-dir" (assoc-ref %outputs "out") "--local" "pkg/nokogiri-1.6.6.2.gem" "--" "--use-system-libraries" (string-append "--with-xml2-include=" libxml2 "/include/libxml2" )))
-
     (native-inputs
      `(("ruby-hoe" ,ruby-hoe)
        ("ruby-rake-compiler", ruby-rake-compiler)))
@@ -580,7 +575,6 @@ using Net::HTTP, supporting reconnection and retry according to RFC 2616.")
      `(("zlib" ,zlib)
        ("libxml2" ,libxml2)
        ("libxslt" ,libxslt)))
-
     (synopsis "Nokogiri (鋸) is an HTML, XML, SAX, and Reader parser")
     (description "Nokogiri parses and searches XML/HTML very quickly, and also has correctly implemented CSS3 selector support as well as XPath 1.0 support.")
     (home-page "http://www.nokogiri.org/")
