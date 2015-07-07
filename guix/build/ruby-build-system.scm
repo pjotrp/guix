@@ -72,14 +72,12 @@ directory."
     (if (null? gem-flags)
 	(write "hello")
         (write (string-join gem-flags)))
-    (let ((x (if (null? gem-flags)(string-join '())(string-join gem-flags))))
-      (zero? (system* "gem" "install" "--local"
-		      (first-matching-file "\\.gem$")
-		      ;; Executables should go into /bin, not /lib/ruby/gems.
-		      "--bindir" (string-append out "/bin") "--"
-		      (if (null? gem-flags)(string-join '())(string-join gem-flags))
-					; (if (null? gem-flags) (" ")(string-join gem-flags))
-		      )))))
+    (zero? (system* "gem" "install" "--local"
+		    (first-matching-file "\\.gem$")
+		    ;; Executables should go into /bin, not /lib/ruby/gems.
+		    "--bindir" (string-append out "/bin") "--"
+		    (if (null? gem-flags)(string-join '())(string-join gem-flags))
+		    ))))
 
 (define %standard-phases
   (modify-phases gnu:%standard-phases
