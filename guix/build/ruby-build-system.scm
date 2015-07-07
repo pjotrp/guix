@@ -59,7 +59,9 @@ directory."
       (zero? (system* "rake" test-target))
       #t))
 
-(define* (install #:key source inputs outputs #:allow-other-keys)
+(define* (install #:key source inputs outputs
+		  #:allow-other-keys
+		  )
   (let* ((ruby-version
           (match:substring (string-match "ruby-(.*)\\.[0-9]$"
                                          (assoc-ref inputs "ruby"))

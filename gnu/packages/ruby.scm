@@ -559,11 +559,17 @@ using Net::HTTP, supporting reconnection and retry according to RFC 2616.")
 		   (zero? (system* "rake" "gem")))
 		 (alist-replace
 		  'install
-		  (lambda* (#:key inputs #:allow-other-keys)
-		    (let ((libxml2 (assoc-ref inputs "libxml2")))
-		      (zero? (system* "gem" "install" "--install-dir" (assoc-ref %outputs "out") "--local" "pkg/nokogiri-1.6.6.2.gem" "--" "--use-system-libraries" (string-append "--with-xml2-include=" libxml2 "/include/libxml2" )))
-		      ))
-                 %standard-phases))))
+		  (lambda* (#:key outputs #:allow-other-keys #:rest args)
+			   (let ((out (assoc-ref outputs "out"))
+				 (install (assoc-ref %standard-phases 'install)))
+			     (apply install args)))
+		  %standard-phases))))
+		 ; (alist-replace
+		 ;  'install
+		 ;  (lambda* (#:key inputs #:allow-other-keys)
+		 ;    (let ((libxml2 (assoc-ref inputs "libxml2")))
+		 ;      (zero? (system* "gem" "install" "--install-dir" (assoc-ref %outputs "out") "--local" "pkg/nokogiri-1.6.6.2.gem" "--" "--use-system-libraries" (string-append "--with-xml2-include=" libxml2 "/include/libxml2" )))
+
     (native-inputs
      `(("ruby-hoe" ,ruby-hoe)
        ("ruby-rake-compiler", ruby-rake-compiler)))
