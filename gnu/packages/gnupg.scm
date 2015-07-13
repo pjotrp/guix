@@ -3,6 +3,7 @@
 ;;; Copyright © 2013, 2015 Andreas Enge <andreas@enge.fr>
 ;;; Copyright © 2014 Eric Bavier <bavier@member.fsf.org>
 ;;; Copyright © 2014, 2015 Mark H Weaver <mhw@netris.org>
+;;; Copyright © 2015 Paul van der Walt <paul@denknerd.org>
 ;;;
 ;;; This file is part of GNU Guix.
 ;;;
@@ -22,7 +23,6 @@
 (define-module (gnu packages gnupg)
   #:use-module ((guix licenses) #:prefix license:)
   #:use-module (gnu packages curl)
-  #:use-module (gnu packages gnutls)
   #:use-module (gnu packages openldap)
   #:use-module (gnu packages perl)
   #:use-module (gnu packages pth)
@@ -33,6 +33,7 @@
   #:use-module (gnu packages glib)
   #:use-module (gnu packages pkg-config)
   #:use-module (gnu packages ncurses)
+  #:use-module (gnu packages tls)
   #:use-module (guix packages)
   #:use-module (guix download)
   #:use-module (guix build-system gnu))
@@ -108,7 +109,7 @@ generation.")
 (define-public libassuan
   (package
     (name "libassuan")
-    (version "2.2.0")
+    (version "2.2.1")
     (source
      (origin
       (method url-fetch)
@@ -116,7 +117,7 @@ generation.")
                           version ".tar.bz2"))
       (sha256
        (base32
-        "1ikf9whfi7rg71qa610ynyv12qrw20zkn7zxgvvr9dp41gbqxxbx"))))
+        "1pp2kl5gc2vja41g3wk03h1hgh7gxy6pj354fb5n4lrlg6xqb4ll"))))
     (build-system gnu-build-system)
     (propagated-inputs
      `(("libgpg-error" ,libgpg-error) ("pth" ,pth)))
@@ -133,7 +134,7 @@ provided.")
 (define-public libksba
   (package
     (name "libksba")
-    (version "1.3.2")
+    (version "1.3.3")
     (source
      (origin
       (method url-fetch)
@@ -142,7 +143,7 @@ provided.")
             version ".tar.bz2"))
       (sha256
        (base32
-        "01l4hvcknk9nb4bvyb6aqaid19jg0wv3ik54j1b89hnzamwm75gb"))))
+        "11kp3h9l3b8ikydkcdkwgx45r662zi30m26ra5llyhfh6kz5yzqc"))))
     (build-system gnu-build-system)
     (propagated-inputs
      `(("libgpg-error" ,libgpg-error)))
@@ -166,7 +167,7 @@ specifications are building blocks of S/MIME and TLS.")
 (define-public npth
   (package
     (name "npth")
-    (version "1.1")
+    (version "1.2")
     (source
      (origin
       (method url-fetch)
@@ -175,7 +176,7 @@ specifications are building blocks of S/MIME and TLS.")
             version ".tar.bz2"))
       (sha256
        (base32
-        "0zyzwmk4mp6pas87jz35zx0jvwdz7x5b13w225gs73gcn8g5cv49"))))
+        "12n0nvhw4fzwp0k7gjv3rc6pdml0qiinbbfiz4ilg6pl5kdxvnvd"))))
     (build-system gnu-build-system)
     (home-page "http://www.gnupg.org")
     (synopsis "Non-preemptive thread library")
@@ -292,7 +293,7 @@ libskba (working with X.509 certificates and CMS data).")
 (define-public gpgme
   (package
     (name "gpgme")
-    (version "1.5.4")
+    (version "1.5.5")
     (source
      (origin
       (method url-fetch)
@@ -300,7 +301,7 @@ libskba (working with X.509 certificates and CMS data).")
                           ".tar.bz2"))
       (sha256
        (base32
-        "0v7azxazsfakvhrxzj5ysvcxma0892c89d27c17fkj8mi3nc0f5v"))))
+        "01y28fkq52wwf4p470wscaxd2vgzl615irmafx3mj3380x8ksg8b"))))
     (build-system gnu-build-system)
     (propagated-inputs
      ;; Needs to be propagated because gpgme.h includes gpg-error.h.
@@ -326,14 +327,14 @@ and every application benefits from this.")
 (define-public pius
   (package
    (name "pius")
-   (version "2.0.11")
+   (version "2.1.1")
    (source (origin
             (method url-fetch)
             (uri (string-append "mirror://sourceforge/pgpius/pius/"
                                 version "/pius-"
                                 version ".tar.bz2"))
             (sha256 (base32
-                     "0pdbyqz6k0bm182cz81ss7yckmpms5qhrrw0wcr4a1srzcjyzf5f"))))
+                     "0ry3kc3x1qjmvb581ja2z2v32r1rl1g8rhfj7iqvs8nzq4ca512i"))))
    (build-system gnu-build-system)
    (inputs `(("perl" ,perl)
              ("python" ,python-2)          ;uses the Python 2 'print' syntax
@@ -475,17 +476,18 @@ including tools for signing keys, keyring analysis, and party preparation.
 (define-public pinentry
   (package
     (name "pinentry")
-    (version "0.9.0")
+    (version "0.9.5")
     (source (origin
               (method url-fetch)
               (uri (string-append "mirror://gnupg/pinentry/pinentry-"
                                   version ".tar.bz2"))
               (sha256
                (base32
-                "1awhajq21hcjgqfxg9czaxg555gij4bba6axrwg8w6lfmc3ml14h"))))
+                "1338hj1h3sh34897120y30x12b64wyj3xjzzk5asm2hdzhxgsmva"))))
     (build-system gnu-build-system)
     (inputs
      `(("ncurses" ,ncurses)
+       ("libassuan" ,libassuan)
        ("gtk+" ,gtk+-2)
        ("glib" ,glib)))
     (native-inputs

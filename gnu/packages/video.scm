@@ -49,7 +49,6 @@
   #:use-module (gnu packages glib)
   #:use-module (gnu packages guile)
   #:use-module (gnu packages gnupg)
-  #:use-module (gnu packages gnutls)
   #:use-module (gnu packages gtk)
   #:use-module (gnu packages image)
   #:use-module (gnu packages linux)
@@ -57,7 +56,6 @@
   #:use-module (gnu packages mp3)
   #:use-module (gnu packages ncurses)
   #:use-module (gnu packages ocr)
-  #:use-module (gnu packages openssl)
   #:use-module (gnu packages perl)
   #:use-module (gnu packages pkg-config)
   #:use-module (gnu packages pulseaudio)
@@ -69,6 +67,7 @@
   #:use-module (gnu packages texinfo)
   #:use-module (gnu packages texlive)
   #:use-module (gnu packages textutils)
+  #:use-module (gnu packages tls)
   #:use-module (gnu packages version-control)
   #:use-module (gnu packages web)
   #:use-module (gnu packages xdisorg)
@@ -129,21 +128,102 @@ old-fashioned output methods with powerful ascii-art renderer.")
                     ".tar.gz"))
               (sha256
                (base32
-                "0czccp4fcpf2ykp16xcrzdfmnircz1ynhls334q374xknd5747d2"))))
+                "0czccp4fcpf2ykp16xcrzdfmnircz1ynhls334q374xknd5747d2"))
+              (patches (map search-patch '("liba52-enable-pic.patch"
+                                           "liba52-set-soname.patch"
+                                           "liba52-use-mtune-not-mcpu.patch"
+                                           "liba52-link-with-libm.patch")))))
     (build-system gnu-build-system)
+    ;; XXX We need to run ./bootstrap because of the build system fixes above.
+    (native-inputs
+     `(("autoconf" ,autoconf)
+       ("automake" ,automake)
+       ("libtool" ,libtool)))
     (arguments `(#:configure-flags
-                 '(;; FIXME: liba52-0.7.4's config.guess fails on mips64el.
+                 '("--enable-shared"
+                   ;; FIXME: liba52-0.7.4's config.guess fails on mips64el.
                    ,@(if (%current-target-system)
                          '()
                          (let ((triplet
                                 (nix-system->gnu-triplet (%current-system))))
-                           (list (string-append "--build=" triplet)))))))
+                           (list (string-append "--build=" triplet)))))
+                 #:phases
+                 (modify-phases %standard-phases
+                   ;; XXX We need to run ./bootstrap because of the build
+                   ;; system fixes above.
+                   (add-after
+                    'unpack 'bootstrap
+                    (lambda _ (zero? (system* "sh" "bootstrap")))))))
     (home-page "http://liba52.sourceforge.net/")
     (synopsis "ATSC A/52 stream decoder")
     (description "liba52 is a library for decoding ATSC A/52 streams.  The
 A/52 standard is used in a variety of applications, including digital
 television and DVD.  It is also known as AC-3.")
     (license license:gpl2+)))
+
+(define-public libmpeg2
+  (package
+    (name "libmpeg2")
+    (version "0.5.1")
+    (source (origin
+              (method url-fetch)
+              ;; A mirror://sourceforge URI doesn't work, presumably
+              ;; because the SourceForge project is misconfigured.
+              (uri (string-append "http://libmpeg2.sourceforge.net/files/"
+                                  name "-" version ".tar.gz"))
+              (sha256
+               (base32
+                "1m3i322n2fwgrvbs1yck7g5md1dbg22bhq5xdqmjpz5m7j4jxqny"))))
+    (inputs
+     `(("libx11" ,libx11)
+       ("libxext" ,libxext)
+       ("libxv" ,libxv)
+       ("libsm" ,libsm)
+       ("libice" ,libice)
+       ("sdl" ,sdl)))
+    (build-system gnu-build-system)
+    (home-page "http://libmpeg2.sourceforge.net/")
+    (synopsis "MPEG1 and MPEG2 video decoder library")
+    (description
+     "libmpeg2 is a library which can decode MPEG1 and MPEG2 video streams.")
+    (license license:gpl2+)))
+
+(define-public libx264
+  (package
+    (name "libx264")
+    (version "20150706-2245")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "ftp://ftp.videolan.org/pub/x264/snapshots/"
+                                  "x264-snapshot-" version ".tar.bz2"))
+              (sha256
+               (base32
+                "0v04xq25q66gsk78i4kryy7503ki87jxbhln2c0qpvyy0d47p466"))))
+    (build-system gnu-build-system)
+    (native-inputs
+     `(("pkg-config" ,pkg-config)
+       ("yasm" ,yasm)))
+    ;; TODO: Add gpac input
+    (arguments
+     `(#:tests? #f  ;no check target
+       #:configure-flags '("--enable-shared"
+                           ;; Don't build the command-line program.  If we
+                           ;; want it later, we should do so in a different
+                           ;; package to avoid a circular dependency (the x264
+                           ;; program depends on ffmpeg and ffmpeg depends on
+                           ;; libx264).
+                           "--disable-cli")))
+    (home-page "http://www.videolan.org/developers/x264.html")
+    (synopsis "H.264 video coding library")
+    (description "libx264 is an advanced encoding library for creating
+H.264 (MPEG-4 AVC) video streams.")
+    (license (list license:gpl2+         ;most files
+                   license:isc           ;common/x86/x86inc.asm
+                   license:lgpl2.1+      ;extras/getopt.c
+                   license:bsd-3         ;extras/inttypes.h
+                   (license:non-copyleft ;extras/cl*.h
+                    "file://extras/cl.h"
+                    "See extras/cl.h in the distribution.")))))
 
 (define-public libass
   (package
@@ -319,6 +399,7 @@ standards (MPEG-2, MPEG-4 ASP/H.263, MPEG-4 AVC/H.264, and VC-1/VMW3).")
        ("libtheora" ,libtheora)
        ("libvorbis" ,libvorbis)
        ("libvpx" ,libvpx)
+       ("libx264" ,libx264)
        ("openal" ,openal)
        ("pulseaudio" ,pulseaudio)
        ("soxr" ,soxr)
@@ -382,7 +463,6 @@ standards (MPEG-2, MPEG-4 ASP/H.263, MPEG-4 AVC/H.264, and VC-1/VMW3).")
               ;;   --enable-libvo-aacenc    enable AAC encoding via libvo-aacenc [no]
               ;;   --enable-libvo-amrwbenc  enable AMR-WB encoding via libvo-amrwbenc [no]
               ;;   --enable-libwavpack      enable wavpack encoding via libwavpack [no]
-              ;;   --enable-libx264         enable H.264 encoding via x264 [no]
               ;;   --enable-libxavs         enable AVS encoding via xavs [no]
               ;;   --enable-libzmq          enable message passing via libzmq [no]
               ;;   --enable-libzvbi         enable teletext support via libzvbi [no]
@@ -416,6 +496,7 @@ standards (MPEG-2, MPEG-4 ASP/H.263, MPEG-4 AVC/H.264, and VC-1/VMW3).")
                       "--enable-libvorbis"
                       "--enable-libvpx"
                       "--enable-libxvid"
+                      "--enable-libx264"
                       "--enable-openal"
 
                       "--enable-runtime-cpudetect"
@@ -803,18 +884,15 @@ projects while introducing many more.")
 (define-public libvpx
   (package
     (name "libvpx")
-    (version "1.3.0")
+    (version "1.4.0")
     (source (origin
               (method url-fetch)
-              (uri (string-append "http://webm.googlecode.com/files/libvpx-v"
-                                  version ".tar.bz2"))
+              (uri (string-append "http://storage.googleapis.com/"
+                                  "downloads.webmproject.org/releases/webm/"
+                                  name "-" version ".tar.bz2"))
               (sha256
                (base32
-                "1aai0h0z1bhp89pxmg4fkrwpmqq24k39fhr15cw6q77m9bccip6k"))
-              (patches
-               (list (search-patch "libvpx-vp9-out-of-bounds-access.patch")
-                     (search-patch "libvpx-fix-ssse3-quantize.patch")
-                     (search-patch "libvpx-fix-armhf-link.patch")))))
+                "1r0ql5kgy0c8mh5w7iiqvsd7w5njl9f9cclc7m52ln8assrdk0pm"))))
     (build-system gnu-build-system)
     (arguments
      `(#:phases (alist-replace
@@ -907,7 +985,7 @@ players, like VLC or MPlayer.")
 (define-public libdvdread
   (package
     (name "libdvdread")
-    (version "5.0.0")
+    (version "5.0.3")
     (source (origin
               (method url-fetch)
               (uri (string-append "http://download.videolan.org/videolan/"
@@ -915,7 +993,7 @@ players, like VLC or MPlayer.")
                                   name "-" version ".tar.bz2"))
               (sha256
                (base32
-                "052z62l3x8ka5jpf5bi1mzp5p323n1z9rxj74nq5c35a88x1myv6"))))
+                "0ayqiq0psq18rcp6f5pz82sxsq66v0kwv0y55dbrcg68plnxy71j"))))
     (build-system gnu-build-system)
     (home-page "http://dvdnav.mplayerhq.hu/")
     (synopsis "Library for reading video DVDs")
@@ -930,7 +1008,7 @@ installed).")
 (define-public libdvdnav
   (package
     (name "libdvdnav")
-    (version "5.0.1")
+    (version "5.0.3")
     (source (origin
               (method url-fetch)
               (uri (string-append "http://download.videolan.org/videolan/"
@@ -938,7 +1016,7 @@ installed).")
                                   name "-" version ".tar.bz2"))
               (sha256
                (base32
-                "1ad2lkkiydgwiyqfysra9lkwjv9yqnvcg4hv92hx8qzics1cpcbj"))))
+                "0v8byv5z598k06rqzdmj7739vc86xq3zf79zfr698dib7lz055sh"))))
     (build-system gnu-build-system)
     (native-inputs
      `(("pkg-config" ,pkg-config)))
@@ -1142,96 +1220,6 @@ can be automated using projects, job queue and powerful scripting
 capabilities.")
     ;; Software with various licenses is included, see License.txt.
     (license license:gpl2+)))
-
-(define-public avidemux-2.5
-  (package (inherit avidemux)
-    (version "2.5.6")
-    (source (origin
-             (method url-fetch)
-             (uri (string-append
-                   "mirror://sourceforge/avidemux/avidemux_"
-                   version ".tar.gz"))
-             (sha256
-              (base32
-               "12wvxz0n2g85f079d8mdkkp2zm279d34m9v7qgcqndh48cn7znnn"))))
-    (native-inputs
-     `(("pkg-config" ,pkg-config)))
-    (inputs
-     `(("alsa-lib" ,alsa-lib)
-       ("gettext" ,gnu-gettext)
-       ("gtk+" ,gtk+-2)
-       ("jack" ,jack-1)
-       ("lame" ,lame)
-       ("libvorbis" ,libvorbis)
-       ("libvpx" ,libvpx)
-       ("libxml2" ,libxml2)
-       ("libxslt" ,libxslt)
-       ("libxv" ,libxv)
-       ("perl" ,perl)
-       ("pulseaudio" ,pulseaudio)
-       ("qt" ,qt-4)
-       ("sdl" ,sdl)
-       ("yasm" ,yasm)
-       ("zlib" ,zlib)))
-    (arguments
-     `(#:tests? #f
-       #:phases
-       (alist-cons-before
-        'patch-source-shebangs 'unpack-ffmpeg
-        (lambda _
-          (with-directory-excursion "avidemux/ADM_libraries"
-            (system* "tar" "xf" "ffmpeg-0.9.tar.bz2")
-            (delete-file "ffmpeg-0.9.tar.bz2")))
-        (alist-cons-after
-         'patch-source-shebangs 'repack-ffmpeg
-         (lambda _
-           (with-directory-excursion "avidemux/ADM_libraries"
-             (substitute* "ffmpeg-0.9/configure"
-               (("#! /bin/sh") (string-append "#!" (which "bash"))))
-             (system* "tar" "cjf" "ffmpeg-0.9.tar.bz2" "ffmpeg-0.9")
-             (delete-file-recursively "ffmpeg-0.9")))
-         (alist-replace 'configure
-          (lambda _
-            (setenv "CMAKE_LIBRARY_PATH" (getenv "LIBRARY_PATH"))
-            (setenv "CMAKE_INCLUDE_PATH" (getenv "CPATH")))
-          (alist-replace 'build
-            (lambda* (#:key inputs outputs #:allow-other-keys)
-              (let*
-                ((out (assoc-ref outputs "out"))
-                 (lib (string-append out "/lib"))
-                 (top (getcwd))
-                 (sdl (assoc-ref inputs "sdl"))
-                 (build_component
-                   (lambda* (component srcdir)
-                     (let ((builddir (string-append "build_" component)))
-                       (mkdir builddir)
-                       (with-directory-excursion builddir
-                        (zero? (and
-                          (system* "cmake"
-                                   "-DCMAKE_INSTALL_RPATH_USE_LINK_PATH=TRUE"
-                                   (string-append "-DCMAKE_INSTALL_PREFIX="
-                                                  out)
-                                   (string-append "-DCMAKE_INSTALL_RPATH="
-                                                  lib)
-                                   (string-append "-DAVIDEMUX_SOURCE_DIR="
-                                                  top)
-                                   (string-append "-DAVIDEMUX_CORECONFIG_DIR="
-                                                  top "/build_main/config")
-                                   (string-append "-DAVIDEMUX_INSTALL_PREFIX="
-                                                  out)
-                                   (string-append "-DSDL_INCLUDE_DIR="
-                                                  sdl "/include/SDL")
-                                   (string-append "../" srcdir))
-                          (system* "make" "-j"
-                                   (number->string (parallel-job-count)))
-                          (system* "make" "install"))))))))
-                (mkdir out)
-                (and (build_component "main" ".")
-                     (build_component "plugins" "plugins"))
-                (delete-file-recursively
-                  (string-append out "/share/ADM_addons"))))
-            (alist-delete 'install
-               %standard-phases)))))))))
 
 (define-public vapoursynth
   (package

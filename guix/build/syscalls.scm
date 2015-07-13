@@ -1,5 +1,6 @@
 ;;; GNU Guix --- Functional package management for GNU
 ;;; Copyright © 2014, 2015 Ludovic Courtès <ludo@gnu.org>
+;;; Copyright © 2015 David Thompson <davet@gnu.org>
 ;;;
 ;;; This file is part of GNU Guix.
 ;;;
@@ -26,9 +27,17 @@
   #:use-module (ice-9 ftw)
   #:export (errno
             MS_RDONLY
+            MS_NOSUID
+            MS_NODEV
+            MS_NOEXEC
             MS_REMOUNT
             MS_BIND
             MS_MOVE
+            MS_STRICTATIME
+            MNT_FORCE
+            MNT_DETACH
+            MNT_EXPIRE
+            UMOUNT_NOFOLLOW
             restart-on-EINTR
             mount
             umount
@@ -36,6 +45,17 @@
             swapon
             swapoff
             processes
+            mkdtemp!
+            pivot-root
+
+            CLONE_NEWNS
+            CLONE_NEWUTS
+            CLONE_NEWIPC
+            CLONE_NEWUSER
+            CLONE_NEWPID
+            CLONE_NEWNET
+            clone
+            setns
 
             IFF_UP
             IFF_BROADCAST
@@ -136,10 +156,19 @@
                 entries))))
 
 ;; Linux mount flags, from libc's <sys/mount.h>.
-(define MS_RDONLY      1)
-(define MS_REMOUNT    32)
-(define MS_BIND     4096)
-(define MS_MOVE     8192)
+(define MS_RDONLY             1)
+(define MS_NOSUID             2)
+(define MS_NODEV              4)
+(define MS_NOEXEC             8)
+(define MS_REMOUNT           32)
+(define MS_BIND            4096)
+(define MS_MOVE            8192)
+(define MS_STRICTATIME 16777216)
+
+(define MNT_FORCE       1)
+(define MNT_DETACH      2)
+(define MNT_EXPIRE      4)
+(define UMOUNT_NOFOLLOW 8)
 
 (define mount
   (let* ((ptr  (dynamic-func "mount" (dynamic-link)))
@@ -246,6 +275,74 @@ user-land process."
                              pid)))
                     (scandir "/proc"))
         <))
+
+(define mkdtemp!
+  (let* ((ptr  (dynamic-func "mkdtemp" (dynamic-link)))
+         (proc (pointer->procedure '* ptr '(*))))
+    (lambda (tmpl)
+      "Create a new unique directory in the file system using the template
+string TMPL and return its file name.  TMPL must end with 'XXXXXX'."
+      (let ((result (proc (string->pointer tmpl)))
+            (err    (errno)))
+        (when (null-pointer? result)
+          (throw 'system-error "mkdtemp!" "~S: ~A"
+                 (list tmpl (strerror err))
+                 (list err)))
+        (pointer->string result)))))
+
+;; Linux clone flags, from linux/sched.h
+(define CLONE_NEWNS   #x00020000)
+(define CLONE_NEWUTS  #x04000000)
+(define CLONE_NEWIPC  #x08000000)
+(define CLONE_NEWUSER #x10000000)
+(define CLONE_NEWPID  #x20000000)
+(define CLONE_NEWNET  #x40000000)
+
+;; The libc interface to sys_clone is not useful for Scheme programs, so the
+;; low-level system call is wrapped instead.
+(define clone
+  (let* ((ptr        (dynamic-func "syscall" (dynamic-link)))
+         (proc       (pointer->procedure int ptr (list int int '*)))
+         ;; TODO: Don't do this.
+         (syscall-id (match (utsname:machine (uname))
+                       ("i686"   120)
+                       ("x86_64" 56)
+                       ("mips64" 5055)
+                       ("armv7l" 120))))
+    (lambda (flags)
+      "Create a new child process by duplicating the current parent process.
+Unlike the fork system call, clone accepts FLAGS that specify which resources
+are shared between the parent and child processes."
+      (proc syscall-id flags %null-pointer))))
+
+(define setns
+  (let* ((ptr  (dynamic-func "setns" (dynamic-link)))
+         (proc (pointer->procedure int ptr (list int int))))
+    (lambda (fdes nstype)
+      "Reassociate the current process with the namespace specified by FDES, a
+file descriptor obtained by opening a /proc/PID/ns/* file.  NSTYPE specifies
+which type of namespace the current process may be reassociated with, or 0 if
+there is no such limitation."
+      (let ((ret (proc fdes nstype))
+            (err (errno)))
+        (unless (zero? ret)
+          (throw 'system-error "setns" "~d ~d: ~A"
+                 (list fdes nstype (strerror err))
+                 (list err)))))))
+
+(define pivot-root
+  (let* ((ptr  (dynamic-func "pivot_root" (dynamic-link)))
+         (proc (pointer->procedure int ptr (list '* '*))))
+    (lambda (new-root put-old)
+      "Change the root file system to NEW-ROOT and move the current root file
+system to PUT-OLD."
+      (let ((ret (proc (string->pointer new-root)
+                       (string->pointer put-old)))
+            (err (errno)))
+        (unless (zero? ret)
+          (throw 'system-error "pivot_root" "~S ~S: ~A"
+                 (list new-root put-old (strerror err))
+                 (list err)))))))
 
 
 ;;;

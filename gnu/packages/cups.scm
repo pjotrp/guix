@@ -30,14 +30,14 @@
   #:use-module (gnu packages fontutils)
   #:use-module (gnu packages ghostscript)
   #:use-module (gnu packages glib)
-  #:use-module (gnu packages gnutls)
   #:use-module (gnu packages pdf)
-  #:use-module (gnu packages pkg-config))
+  #:use-module (gnu packages pkg-config)
+  #:use-module (gnu packages tls))
 
 (define-public cups-filters
   (package
     (name "cups-filters")
-    (version "1.0.68")
+    (version "1.0.71")
     (source (origin
               (method url-fetch)
               (uri
@@ -45,7 +45,7 @@
                               "cups-filters-" version ".tar.xz"))
               (sha256
                (base32
-                "0dx4assqzqdi0q4j7z5s7xzzvzxnd5c1njd9139a1h353qrcr5fi"))
+                "07wwlqcykfjfqcwj1bxk60ggahyaw7wcx32n5s104d1qkhham01i"))
               (modules '((guix build utils)))
               (snippet
                ;; install backends, banners and filters to cups-filters output

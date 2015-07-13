@@ -34,6 +34,7 @@
   #:use-module (guix build-system glib-or-gtk)
   #:use-module (gnu packages)
   #:use-module (gnu packages autotools)
+  #:use-module (gnu packages avahi)
   #:use-module (gnu packages base)
   #:use-module (gnu packages bison)
   #:use-module (gnu packages cups)
@@ -52,11 +53,12 @@
   #:use-module (gnu packages polkit)
   #:use-module (gnu packages popt)
   #:use-module (gnu packages ghostscript)
-  #:use-module (gnu packages gnutls)
   #:use-module (gnu packages iso-codes)
   #:use-module (gnu packages libcanberra)
   #:use-module (gnu packages linux)
   #:use-module (gnu packages libusb)
+  #:use-module (gnu packages lirc)
+  #:use-module (gnu packages lua)
   #:use-module (gnu packages image)
   #:use-module (gnu packages perl)
   #:use-module (gnu packages pkg-config)
@@ -69,6 +71,7 @@
   #:use-module (gnu packages qt)  ; for libxkbcommon
   #:use-module (gnu packages compression)
   #:use-module (gnu packages texlive)
+  #:use-module (gnu packages tls)
   #:use-module (gnu packages web)
   #:use-module (gnu packages webkit)
   #:use-module (gnu packages xorg)
@@ -83,20 +86,30 @@
 (define-public brasero
   (package
     (name "brasero")
-    (version "3.8.0")
+    (version "3.12.1")
     (source (origin
              (method url-fetch)
-             (uri (string-append "mirror://gnome/sources/brasero/3.8/brasero-"
-                                 version ".tar.xz"))
+             (uri (string-append "mirror://gnome/sources/" name "/"
+                                 (version-major+minor version) "/"
+                                 name "-" version ".tar.xz"))
              (sha256
               (base32
-               "1r5wjsrm47amdaf862ymkdlwlb636c45wg14x20hdr99c653d2nr"))))
+               "09vi2hyhl0bz7imv3ky6h7x5m3d546n968wcghydwrkvwm9ylpls"))))
     (build-system gnu-build-system)
+    (arguments
+     `(#:configure-flags (list
+                          (string-append "--with-girdir="
+                                         (assoc-ref %outputs "out")
+                                         "/share/gir-1.0")
+                          (string-append "--with-typelibdir="
+                                         (assoc-ref %outputs "out")
+                                         "/lib/girepository-1.0"))))
     (propagated-inputs
      `(("hicolor-icon-theme" ,hicolor-icon-theme)))
     (native-inputs
      `(("intltool" ,intltool)
        ("glib" ,glib "bin")                       ; glib-compile-schemas, etc.
+       ("gobject-introspection" ,gobject-introspection)
        ("pkg-config" ,pkg-config)))
     (inputs
      `(("glib" ,glib)
@@ -109,7 +122,9 @@
        ("libice" ,libice)
        ("libnotify" ,libnotify)
        ("libsm" ,libsm)
-       ("libxml2" ,libxml2)))
+       ("libxml2" ,libxml2)
+       ("nettle" ,nettle)
+       ("totem-pl-parser" ,totem-pl-parser)))
     (home-page "https://projects.gnome.org/brasero/")
     (synopsis "CD/DVD burning tool for Gnome")
     (description "Brasero is an application to burn CD/DVD for the Gnome
@@ -2075,11 +2090,12 @@ floating in an ocean using only your brain and a little bit of luck.")
        ("desktop-file-utils" ,desktop-file-utils)
        ("intltool" ,intltool)
        ("itstool" ,itstool)))
+    (propagated-inputs
+     `(("dconf" ,dconf)))
     (inputs
      `(("gtk+" ,gtk+)
        ("vte" ,vte)
        ("gnutls" ,gnutls)
-       ("dconf" ,dconf)
        ("gsettings-desktop-schemas" ,gsettings-desktop-schemas)
        ("util-linux" ,util-linux)
        ("vala" ,vala)))
@@ -2718,3 +2734,270 @@ the patterned block to the area bordered by green markers.  To do so, you will
 need to slide other blocks out of the way.  Complete each puzzle in as few moves
 as possible!")
     (license license:gpl2+)))
+
+(define-public grilo
+  (package
+    (name "grilo")
+    (version "0.2.12")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "mirror://gnome/sources/" name "/"
+                           (version-major+minor version) "/"
+                           name "-" version ".tar.xz"))
+       (sha256
+        (base32
+         "11bvc7rsrjjwz8hp67p3fn8zmywrpawrcbi3vgw8b0dwa0sndd2m"))))
+    (build-system gnu-build-system)
+    (native-inputs
+     `(("glib:bin" ,glib "bin")         ; for glib-mkenums and glib-genmarshal
+       ("intltool" ,intltool)
+       ("pkg-config" ,pkg-config)
+       ("gobject-introspection" ,gobject-introspection)))
+    (inputs
+     `(("glib" ,glib)
+       ("gtk+" ,gtk+)
+       ("libxml2" ,libxml2)
+       ;; XXX TODO: Add oauth
+       ("libsoup" ,libsoup)
+       ("totem-pl-parser" ,totem-pl-parser)))
+    (arguments
+     `(#:phases
+       (modify-phases %standard-phases
+         (add-after 'unpack 'fix-introspection-install-dir
+                    (lambda* (#:key outputs #:allow-other-keys)
+                      (let ((out (assoc-ref outputs "out")))
+                        (substitute* '("src/Makefile.in"
+                                       "libs/pls/Makefile.in"
+                                       "libs/net/Makefile.in")
+                          (("@INTROSPECTION_GIRDIR@")
+                           (string-append out "/share/gir-1.0/"))
+                          (("@INTROSPECTION_TYPELIBDIR@")
+                           (string-append out "/lib/girepository-1.0/")))))))))
+    (native-search-paths
+     (list (search-path-specification
+            (variable "GRL_PLUGIN_PATH")
+            (files (list (string-append "lib/grilo-"
+                                        (version-major+minor version)))))))
+    (home-page "http://live.gnome.org/Grilo")
+    (synopsis "Framework for discovering and browsing media")
+    (description
+     "Grilo is a framework focused on making media discovery and browsing easy
+for application developers.")
+    (license license:lgpl2.1+)))
+
+(define-public grilo-plugins
+  (package
+    (name "grilo-plugins")
+    (version "0.2.14")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "mirror://gnome/sources/" name "/"
+                           (version-major+minor version) "/"
+                           name "-" version ".tar.xz"))
+       (sha256
+        (base32
+         "1aykhc679pwn2qxsg19g8nh9hffpsqkgxcbqq7lcfn2hcwb83wfh"))))
+    (build-system gnu-build-system)
+    (native-inputs
+     `(("glib:bin" ,glib "bin")     ; for glib-mkenums and glib-genmarshal
+       ("intltool" ,intltool)
+       ("itstool" ,itstool)
+       ("pkg-config" ,pkg-config)))
+    (inputs
+     `(("grilo" ,grilo)
+       ("glib" ,glib)
+       ("libxml2" ,libxml2)
+       ("sqlite" ,sqlite)
+       ("gom" ,gom)
+       ;; XXX TODO: Add oauth
+       ;; XXX TODO: Add goa
+       ;; XXX TODO: Add gdata (e.g. needed for youtube plugin)
+       ;; XXX TODO: Add lua (needs help finding it)
+       ("json-glib" ,json-glib)
+       ("avahi" ,avahi)
+       ("gmime" ,gmime)
+       ("libsoup" ,libsoup)
+       ("libarchive" ,libarchive)
+       ("totem-pl-parser" ,totem-pl-parser)))
+    (arguments
+     `(#:make-flags (list (string-append "GRL_PLUGINS_DIR="
+                                         %output
+                                         "/lib/grilo-"
+                                         ,(version-major+minor version)))
+       ;; XXX FIXME: Try to get the test suite working.  It appears to require
+       ;; a working system dbus.  Inside the build container, all tests fail
+       ;; with: "assertion failed: (source)".  Outside of the build container,
+       ;; most tests succeed.
+       #:tests? #f))
+    (home-page "http://live.gnome.org/Grilo")
+    (synopsis "Plugins for the Grilo media discovery library")
+    (description
+     "Grilo is a framework focused on making media discovery and browsing easy
+for application developers.")
+    (license license:lgpl2.1+)))
+
+(define-public totem
+  (package
+    (name "totem")
+    (version "3.16.1")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "mirror://gnome/sources/" name "/"
+                           (version-major+minor version) "/"
+                           name "-" version ".tar.xz"))
+       (sha256
+        (base32
+         "1nkm2i271ivq40hryrl6px39gbbvhmlx4vmvwvw4h3z8xh3013f9"))))
+    (build-system glib-or-gtk-build-system)
+    (native-inputs
+     `(("pkg-config" ,pkg-config)
+       ("desktop-file-utils" ,desktop-file-utils)
+       ("gobject-introspection" ,gobject-introspection)
+       ("intltool" ,intltool)
+       ("itstool" ,itstool)))
+    (propagated-inputs
+     `(("dconf" ,dconf)))
+    (inputs
+     `(("gtk+" ,gtk+)
+       ("gdk-pixbuf" ,gdk-pixbuf)
+       ("atk" ,atk)
+       ("cairo" ,cairo)
+       ("dbus-glib" ,dbus-glib)
+       ("clutter" ,clutter)
+       ("clutter-gtk" ,clutter-gtk)
+       ("clutter-gst" ,clutter-gst)
+       ("xproto" ,xproto)
+       ("libxxf86vm" ,libxxf86vm)
+       ("libxtst" ,libxtst)
+       ("libxrandr" ,libxrandr)
+       ("libxml2" ,libxml2)
+       ("libsoup" ,libsoup)
+       ("libpeas" ,libpeas)
+       ("librsvg" ,librsvg)
+       ("lirc" ,lirc)
+       ("gnome-desktop" ,gnome-desktop)
+       ("gstreamer" ,gstreamer)
+       ("gst-plugins-base" ,gst-plugins-base)
+       ("gst-plugins-good" ,gst-plugins-good)
+       ("gsettings-desktop-schemas" ,gsettings-desktop-schemas)
+       ("adwaita-icon-theme" ,adwaita-icon-theme)
+       ;; XXX We use python-2 because libxml2 because itstool (which needs
+       ;; libxml) currently uses python-2.
+       ("python" ,python-2)
+       ("python-pygobject" ,python2-pygobject)
+       ;; XXX TODO pylint needed for python support
+       ("totem-pl-parser" ,totem-pl-parser)
+       ("grilo" ,grilo)
+       ("grilo-plugins" ,grilo-plugins)
+       ("nettle" ,nettle)
+       ("vala" ,vala)))
+    (arguments
+     `(#:phases
+       (modify-phases %standard-phases
+         (add-after
+          'install 'wrap-totem
+          (lambda* (#:key inputs outputs #:allow-other-keys)
+            (let ((out             (assoc-ref outputs "out"))
+                  (gst-plugin-path (getenv "GST_PLUGIN_SYSTEM_PATH"))
+                  (grl-plugin-path (getenv "GRL_PLUGIN_PATH")))
+              (wrap-program (string-append out "/bin/totem")
+                `("GST_PLUGIN_SYSTEM_PATH" ":" prefix (,gst-plugin-path))
+                `("GRL_PLUGIN_PATH"        ":" prefix (,grl-plugin-path))))
+            #t)))))
+    (home-page "https://wiki.gnome.org/Apps/Videos")
+    (synopsis "Simple media player for GNOME based on GStreamer")
+    (description "Totem is a simple yet featureful media player for GNOME
+which can read a large number of file formats.")
+    ;; GPL2+ with an exception clause for non-GPL compatible GStreamer plugins
+    ;; to be used and distributed together with GStreamer and Totem.  See
+    ;; file://COPYING in the source distribution for details.
+    (license license:gpl2+)))
+
+(define-public rhythmbox
+ (package
+   (name "rhythmbox")
+   (version "3.2.1")
+   (source (origin
+            (method url-fetch)
+            (uri (string-append "mirror://gnome/sources/" name "/"
+                                (version-major+minor version) "/"
+                                name "-" version ".tar.xz"))
+            (sha256
+             (base32
+              "0f3radhlji7rxl760yl2vm49fvfslympxrpm8497acbmbd7wlhxz"))))
+   (build-system glib-or-gtk-build-system)
+   (arguments
+    `(#:configure-flags
+      (list "--enable-lirc"
+            "--enable-python"
+            "--enable-vala"
+            "--with-brasero"
+            "--with-gudev"
+            "--with-libsecret")
+      #:phases
+      (modify-phases %standard-phases
+        (add-after
+         'install 'wrap-rhythmbox
+         (lambda* (#:key inputs outputs #:allow-other-keys)
+           (let ((out               (assoc-ref outputs "out"))
+                 (gi-typelib-path   (getenv "GI_TYPELIB_PATH"))
+                 (gst-plugin-path   (getenv "GST_PLUGIN_SYSTEM_PATH"))
+                 (grl-plugin-path   (getenv "GRL_PLUGIN_PATH")))
+             (wrap-program (string-append out "/bin/rhythmbox")
+               `("GI_TYPELIB_PATH"        ":" prefix (,gi-typelib-path))
+               `("GST_PLUGIN_SYSTEM_PATH" ":" prefix (,gst-plugin-path))
+               `("GRL_PLUGIN_PATH"        ":" prefix (,grl-plugin-path))))
+           #t)))))
+   (propagated-inputs
+    `(("dconf" ,dconf)))
+   (native-inputs
+    `(("intltool" ,intltool)
+      ("glib" ,glib "bin")
+      ("gobject-introspection" ,gobject-introspection)
+      ("desktop-file-utils" ,desktop-file-utils)
+      ("pkg-config" ,pkg-config)))
+   (inputs
+    `(("json-glib" ,json-glib)
+      ("tdb" ,tdb)
+      ("gnome-desktop" ,gnome-desktop)
+      ("python" ,python)
+      ("python-pygobject" ,python2-pygobject)
+      ("vala" ,vala)
+      ("gmime" ,gmime)
+      ("nettle" ,nettle)
+      ("itstool" ,itstool)
+      ("adwaita-icon-theme" ,adwaita-icon-theme)
+      ("grilo" ,grilo)
+      ("grilo-plugins" ,grilo-plugins)
+      ("gstreamer" ,gstreamer)
+      ("gst-plugins-base" ,gst-plugins-base)
+      ("gst-plugins-good" ,gst-plugins-good)
+      ("eudev" ,eudev)
+      ("totem-pl-parser" ,totem-pl-parser)
+      ;;("libmtp" ,libmtp) FIXME: Not detected
+      ("libsecret" ,libsecret)
+      ("libsoup" ,libsoup)
+      ("libnotify" ,libnotify)
+      ("libpeas" ,libpeas)
+      ("lirc" ,lirc)
+      ;; TODO: clutter* only used by visualizer plugin, which also requires mx
+      ;;("clutter" ,clutter)
+      ;;("clutter-gtk" ,clutter-gtk)
+      ;;("clutter-gst" ,clutter-gst)
+      ("gsettings-desktop-schemas" ,gsettings-desktop-schemas)
+      ("atk" ,atk)
+      ("pango" ,pango)
+      ("gtk+" ,gtk+)
+      ;; TODO:
+      ;;  * libgpod
+      ;;  * mx
+      ;;  * webkit
+      ("brasero" ,brasero)))
+   (home-page "https://wiki.gnome.org/Apps/Rhythmbox")
+   (synopsis "Music player for GNOME")
+   (description "Rhythmbox is a music playing application for GNOME.  It
+supports playlists, song ratings, and any codecs installed through gstreamer.")
+   (license license:gpl2+)))

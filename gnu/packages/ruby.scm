@@ -24,10 +24,10 @@
   #:use-module (gnu packages)
   #:use-module (gnu packages compression)
   #:use-module (gnu packages readline)
-  #:use-module (gnu packages openssl)
   #:use-module (gnu packages autotools)
   #:use-module (gnu packages libffi)
   #:use-module (gnu packages gdbm)
+  #:use-module (gnu packages tls)
   #:use-module (gnu packages version-control)
   #:use-module (guix packages)
   #:use-module (guix download)
@@ -163,11 +163,6 @@ a focus on simplicity and productivity.")
                (base32
                 "0i8dimf8kxcjgqj9x65bbi3l6hc9p9gbfbb1vmrz42764a4jjbz9"))) )
     (build-system ruby-build-system)
-    (arguments
-     '(#:phases (alist-replace
-                 'build
-                 (lambda _ (zero? (system* "rake" "gem")))
-                 %standard-phases)))
     (synopsis "Ruby project management helper")
     (description
      "Hoe is a rake/rubygems helper for project Rakefiles.  It helps manage,
@@ -199,10 +194,7 @@ announcement.")
                     (lambda _
                       ;; Remove cucumber test file because the
                       ;; dependencies are not available right now.
-                      (delete-file "tasks/cucumber.rake")))
-                      ;; (replace 'build
-		      ;;    (lambda _ (zero? (system* "rake" "gem"))))
-				   )))
+                      (delete-file "tasks/cucumber.rake"))))))
     (synopsis "Building and packaging helper for Ruby native extensions")
     (description "Rake-compiler proivides a framework for building and
 packaging native C and Java extensions in Ruby.")
@@ -519,10 +511,6 @@ interface for Ruby programs.")
                (base32
                 "1q18vji31w8gfr6ajziqkqs8n5lzkw0bl00dm2a8s05zhavzw9j9"))))
     (build-system ruby-build-system)
-    (arguments
-     '(#:phases (modify-phases %standard-phases
-                  (replace 'build ; no gemspec
-                    (lambda _ (zero? (system* "rake" "gem")))))))
     (native-inputs
      `(("ruby-connection-pool" ,ruby-connection-pool)
        ("ruby-hoe" ,ruby-hoe)))
@@ -587,10 +575,6 @@ using Net::HTTP, supporting reconnection and retry according to RFC 2616.")
                (base32
                 "09xjiahk7q8hid1i39ahrmghaslpj9n36zna72i3ah7kf1bh2l01"))))
     (build-system ruby-build-system)
-    (arguments
-     '(#:phases (modify-phases %standard-phases
-                  (replace 'build ; no gemspec
-                    (lambda _ (zero? (system* "rake" "gem")))))))
     (native-inputs
      `(("ruby-hoe" ,ruby-hoe)))
     (synopsis "Small test suite library for Ruby")
@@ -613,10 +597,6 @@ facilities supporting TDD, BDD, mocking, and benchmarking.")
                (base32
                 "0rbmxz94lqg5vjz60p8v2bzq8adwvmx501amvk0l124sfwmw94ms"))))
     (build-system ruby-build-system)
-    (arguments
-     '(#:phases (modify-phases %standard-phases
-                  (replace 'build ; no gemspec
-                    (lambda _ (zero? (system* "rake" "gem")))))))
     (native-inputs
      `(("ruby-hoe" ,ruby-hoe)
        ("ruby-minitest" ,ruby-minitest)))
@@ -640,10 +620,6 @@ easier to re-run individual failing tests.")
                (base32
                 "19r9fm41i0mm1xncqls8frbj1i9nr3sq1cx2mh878r6kdl02d70h"))))
     (build-system ruby-build-system)
-    (arguments
-     '(#:phases (modify-phases %standard-phases
-                  (replace 'build ; no gemspec
-                    (lambda _ (zero? (system* "rake" "gem")))))))
     (native-inputs
      `(("ruby-hoe" ,ruby-hoe)))
     (inputs

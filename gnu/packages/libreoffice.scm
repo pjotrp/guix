@@ -52,13 +52,13 @@
   #:use-module (gnu packages linux)
   #:use-module (gnu packages maths)
   #:use-module (gnu packages openldap)
-  #:use-module (gnu packages openssl)
   #:use-module (gnu packages pdf)
   #:use-module (gnu packages perl)
   #:use-module (gnu packages pkg-config)
   #:use-module (gnu packages python)
   #:use-module (gnu packages rdf)
   #:use-module (gnu packages scanner)
+  #:use-module (gnu packages tls)
   #:use-module (gnu packages version-control)
   #:use-module (gnu packages xml)
   #:use-module (gnu packages xorg)
@@ -341,19 +341,21 @@ CorelDRAW documents of all versions.")
 (define-public libetonyek
   (package
     (name "libetonyek")
-    (version "0.1.1")
+    (version "0.1.3")
     (source
      (origin
       (method url-fetch)
       (uri (string-append "http://dev-www.libreoffice.org/src/" name "/"
                           name "-" version ".tar.xz"))
       (sha256 (base32
-               "0gn8v24jb9r9kxppbws6xlc7knpd9mk2n9xjvziccv5f2l7mlslw"))))
+               "0mghaqzj0qqza8z1gzprw62702adlww4kgdzynj5qpxxc9m2f4py"))))
     (build-system gnu-build-system)
     (native-inputs
      `(("cppunit" ,cppunit)
        ("doxygen" ,doxygen)
+       ("glm" ,glm)
        ("gperf" ,gperf)
+       ("mdds" ,mdds)
        ("pkg-config" ,pkg-config)))
     (propagated-inputs ; in Requires or Requires.private field of .pkg
      `(("librevenge" ,librevenge)
@@ -537,14 +539,14 @@ text documents, vector drawings, presentations and spreadsheets.")
 (define-public libmwaw
   (package
     (name "libmwaw")
-    (version "0.3.4")
+    (version "0.3.5")
     (source
      (origin
       (method url-fetch)
       (uri (string-append "mirror://sourceforge/" name "/" name "/"
                           name "-" version ".tar.xz"))
       (sha256 (base32
-               "1sn95flxrh85qjsg1kk700c1ggxaaccr9j1nnw7x4daw8lky25ac"))))
+               "1vx9h419fcfcs0yj071hsg9d2qvkacgca6052m8hv3h743cdmzil"))))
     (build-system gnu-build-system)
     (native-inputs
      `(("doxygen" ,doxygen)
@@ -567,14 +569,14 @@ spreadsheet documents.")
 (define-public libwps
   (package
     (name "libwps")
-    (version "0.3.1")
+    (version "0.4.0")
     (source
      (origin
       (method url-fetch)
       (uri (string-append "mirror://sourceforge/" name "/" name "/"
                           name "-" version ".tar.xz"))
       (sha256 (base32
-               "14wfhw1ahavhx4hrdzc4hdwxjlffrm939kswf2x1250jnmyjlb5v"))))
+               "0nlrdk7di015l0sk0ivjdqs86zdcvf73p9z9s9ry5glyhrknzxjk"))))
     (build-system gnu-build-system)
     (native-inputs
      `(("doxygen" ,doxygen)
@@ -674,7 +676,7 @@ and to return information on pronunciations, meaningss and synonyms.")
 (define-public libreoffice
   (package
     (name "libreoffice")
-    (version "4.4.3.2")
+    (version "5.0.0.2")
     (source
      (origin
       (method url-fetch)
@@ -683,7 +685,7 @@ and to return information on pronunciations, meaningss and synonyms.")
           "http://download.documentfoundation.org/libreoffice/src/"
           (version-prefix version 3) "/libreoffice-" version ".tar.xz"))
       (sha256 (base32
-               "0rl9x01ngxwnqwzxkrqy4vks4rb024m75z0w4zidwyp0az0m8qdd"))))
+               "0mzvxc4i5999xzmhgwrfvpvyx5772jylx5mary86drrld8klq7py"))))
     (build-system gnu-build-system)
     (native-inputs
      `(;; autoreconf is run by the LibreOffice build system, since after

@@ -17,6 +17,7 @@
 ;;; along with GNU Guix.  If not, see <http://www.gnu.org/licenses/>.
 
 (define-module (gnu system file-systems)
+  #:use-module (ice-9 match)
   #:use-module (guix gexp)
   #:use-module (guix records)
   #:use-module (guix store)
@@ -33,6 +34,8 @@
             file-system-check?
             file-system-create-mount-point?
 
+            file-system->spec
+
             %fuse-control-file-system
             %binary-format-file-system
             %shared-memory-file-system
@@ -42,6 +45,7 @@
             %control-groups
 
             %base-file-systems
+            %container-file-systems
 
             mapped-device
             mapped-device?
@@ -52,7 +56,16 @@
             mapped-device-kind
             mapped-device-kind?
             mapped-device-kind-open
-            mapped-device-kind-close))
+            mapped-device-kind-close
+
+            <file-system-mapping>
+            file-system-mapping
+            file-system-mapping?
+            file-system-mapping-source
+            file-system-mapping-target
+            file-system-mapping-writable?
+
+            %store-mapping))
 
 ;;; Commentary:
 ;;;
@@ -85,6 +98,13 @@
 file system."
   (or (%file-system-needed-for-boot? fs)
       (string=? "/" (file-system-mount-point fs))))
+
+(define (file-system->spec fs)
+  "Return a list corresponding to file-system FS that can be passed to the
+initrd code."
+  (match fs
+    (($ <file-system> device title mount-point type flags options _ check?)
+     (list device title mount-point type flags options check?))))
 
 (define %fuse-control-file-system
   ;; Control file system for Linux' file systems in user-space (FUSE).
@@ -179,6 +199,45 @@ file system."
                 %immutable-store)
           %control-groups))
 
+;; File systems for Linux containers differ from %base-file-systems in that
+;; they impose additional restrictions such as no-exec or need different
+;; options to function properly.
+;;
+;; The file system flags and options conform to the libcontainer
+;; specification:
+;; https://github.com/docker/libcontainer/blob/master/SPEC.md#filesystem
+(define %container-file-systems
+  (list
+   ;; Psuedo-terminal file system.
+   (file-system
+     (device "none")
+     (mount-point "/dev/pts")
+     (type "devpts")
+     (flags '(no-exec no-suid))
+     (needed-for-boot? #t)
+     (create-mount-point? #t)
+     (check? #f)
+     (options "newinstance,ptmxmode=0666,mode=620"))
+   ;; Shared memory file system.
+   (file-system
+     (device "tmpfs")
+     (mount-point "/dev/shm")
+     (type "tmpfs")
+     (flags '(no-exec no-suid no-dev))
+     (options "mode=1777,size=65536k")
+     (needed-for-boot? #t)
+     (create-mount-point? #t)
+     (check? #f))
+   ;; Message queue file system.
+   (file-system
+     (device "mqueue")
+     (mount-point "/dev/mqueue")
+     (type "mqueue")
+     (flags '(no-exec no-suid no-dev))
+     (needed-for-boot? #t)
+     (create-mount-point? #t)
+     (check? #f))))
+
 
 
 ;;;
@@ -198,5 +257,26 @@ file system."
   (open      mapped-device-kind-open)             ;source target -> gexp
   (close     mapped-device-kind-close             ;source target -> gexp
              (default (const #~(const #f)))))
+
+
+;;;
+;;; Shared file systems, for VMs/containers.
+;;;
+
+;; Mapping of host file system SOURCE to mount point TARGET in the guest.
+(define-record-type* <file-system-mapping> file-system-mapping
+  make-file-system-mapping
+  file-system-mapping?
+  (source    file-system-mapping-source)          ;string
+  (target    file-system-mapping-target)          ;string
+  (writable? file-system-mapping-writable?        ;Boolean
+             (default #f)))
+
+(define %store-mapping
+  ;; Mapping of the host's store into the guest.
+  (file-system-mapping
+   (source (%store-prefix))
+   (target (%store-prefix))
+   (writable? #f)))
 
 ;;; file-systems.scm ends here

@@ -48,16 +48,16 @@
 (define-public libmpdclient
   (package
     (name "libmpdclient")
-    (version "2.9")
+    (version "2.10")
     (source (origin
               (method url-fetch)
               (uri
                (string-append "http://musicpd.org/download/libmpdclient/"
                               (car (string-split version #\.))
-                              "/libmpdclient-" version ".tar.gz"))
+                              "/libmpdclient-" version ".tar.xz"))
               (sha256
                (base32
-                "0csb9r3nlmbwpiryixjr5k33x3zqd61xjhwmlps3a6prck1n1xw2"))))
+                "10pzs9z815a8hgbbbiliapyiw82bnplsccj5irgqjw5f5plcs22g"))))
     (build-system gnu-build-system)
     (native-inputs `(("doxygen" ,doxygen)))
     (synopsis "Music Player Daemon client library")
@@ -69,7 +69,7 @@ interfacing MPD in the C, C++ & Objective C languages.")
 (define-public mpd
   (package
     (name "mpd")
-    (version "0.19.9")
+    (version "0.19.10")
     (source (origin
               (method url-fetch)
               (uri
@@ -78,7 +78,7 @@ interfacing MPD in the C, C++ & Objective C languages.")
                               "/mpd-" version ".tar.xz"))
               (sha256
                (base32
-                "0vzj365s4j0pw5w37lfhx3dmpkdp85driravsvx8rlrw0lii91a7"))))
+                "0laqn68iggqf0h06hg282cvpd9wsjqpjfg5fnn9wk3gr48yyp1n3"))))
     (build-system gnu-build-system)
     (inputs `(("ao" ,ao)
               ("alsa-lib" ,alsa-lib)
@@ -132,7 +132,7 @@ protocol.")
 (define-public mpd-mpc
   (package
     (name "mpd-mpc")
-    (version "0.26")
+    (version "0.27")
     (source (origin
               (method url-fetch)
               (uri
@@ -141,7 +141,7 @@ protocol.")
                               "/mpc-" version ".tar.xz"))
               (sha256
                (base32
-                "0hp2qv6w2v902dhrmck5hg32s1ai6xiv9n61a3n6prfcfdqmywr0"))))
+                "0r10wsqxsi07gns6mfnicvpci0sbwwj4qa9iyr1ysrgadl5bx8j5"))))
     (build-system gnu-build-system)
     (inputs `(("libmpdclient" ,libmpdclient)))
     (native-inputs `(("pkg-config" ,pkg-config)))
@@ -154,16 +154,16 @@ player daemon.")
 (define-public ncmpc
   (package
     (name "ncmpc")
-    (version "0.21")
+    (version "0.24")
     (source (origin
               (method url-fetch)
               (uri
                (string-append "http://musicpd.org/download/ncmpc/"
                               (car (string-split version #\.))
-                              "/ncmpc-" version ".tar.gz"))
+                              "/ncmpc-" version ".tar.xz"))
               (sha256
                (base32
-                "1gpy6rr0awl6xgkswmr8rdvqfkrz83rmwk441c00a9d4z3zb1a16"))))
+                "1sf3nirs3mcx0r5i7acm9bsvzqzlh730m0yjg6jcyj8ln6r7cvqf"))))
     (build-system gnu-build-system)
     (inputs `(("glib" ,glib)
               ("libmpdclient" ,libmpdclient)
@@ -178,7 +178,7 @@ terminal using ncurses.")
 (define-public ncmpcpp
   (package
     (name "ncmpcpp")
-    (version "0.6.2")
+    (version "0.6.5")
     (source (origin
               (method url-fetch)
               (uri
@@ -186,7 +186,7 @@ terminal using ncurses.")
                               version ".tar.bz2"))
               (sha256
                (base32
-                "1mrd6m6ph0fscxp9x96ipxh6ai7w0n1miapcfqrqfy058qx5zbck"))))
+                "1zfidkskmiqx1wfykinmr639lhd90s7b0rks6vaci4n56ml8y4ji"))))
     (build-system gnu-build-system)
     (inputs `(("libmpdclient" ,libmpdclient)
               ("boost"  ,boost)

@@ -40,8 +40,7 @@
   #:use-module (gnu packages perl)
   #:use-module (gnu packages tcl)
   #:use-module (gnu packages compression)
-  #:use-module ((gnu packages openssl) #:prefix o:)
-  #:use-module (gnu packages gnutls)
+  #:use-module (gnu packages tls)
   #:use-module (gnu packages gnupg)
   #:use-module (gnu packages bison)
   #:use-module (gnu packages flex)
@@ -501,7 +500,7 @@ network statistics collection, security monitoring, network debugging, etc.")
                 "15hb7zkzd66nag102qbv100hcnf7frglbkylmr8adwr8f5jkkaql"))))
     (build-system gnu-build-system)
     (inputs `(("libpcap" ,libpcap)
-              ("openssl" ,o:openssl)))
+              ("openssl" ,openssl)))
     (native-inputs `(("perl" ,perl)))        ; for tests
     (home-page "http://www.tcpdump.org/")
     (synopsis "Network packet analyzer")
@@ -706,7 +705,8 @@ commands and their arguments.")
                                    "wpa-supplicant-2015-4-fix-pt2.patch"
                                    "wpa-supplicant-2015-4-fix-pt3.patch"
                                    "wpa-supplicant-2015-4-fix-pt4.patch"
-                                   "wpa-supplicant-2015-4-fix-pt5.patch")))))
+                                   "wpa-supplicant-2015-4-fix-pt5.patch"
+                                   "wpa-supplicant-2015-5-fix.patch")))))
     (build-system gnu-build-system)
     (arguments
      '(#:phases (alist-replace
@@ -975,7 +975,7 @@ characters can be replaced as well, as can UTF-8 characters.")
     (inputs
      `(;; ("ntfs" ,ntfs)
        ("util-linux" ,util-linux)
-       ("openssl" ,o:openssl)
+       ("openssl" ,openssl)
        ("zlib" ,zlib)
        ("e2fsprogs" ,e2fsprogs)
        ("libjpeg" ,libjpeg)

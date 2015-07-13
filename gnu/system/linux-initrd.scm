@@ -132,13 +132,6 @@ MODULES and taken from LINUX."
                                 (guix elf)
                                 (gnu build linux-modules))))
 
-(define (file-system->spec fs)
-  "Return a list corresponding to file-system FS that can be passed to the
-initrd code."
-  (match fs
-    (($ <file-system> device title mount-point type flags options _ check?)
-     (list device title mount-point type flags options check?))))
-
 (define* (base-initrd file-systems
                       #:key
                       (linux linux-libre)
@@ -246,6 +239,7 @@ loaded at boot time in the order in which they appear."
                       #:volatile-root? '#$volatile-root?))
      #:name "base-initrd"
      #:modules '((guix build utils)
+                 (guix build syscalls)
                  (gnu build linux-boot)
                  (gnu build linux-modules)
                  (gnu build file-systems)

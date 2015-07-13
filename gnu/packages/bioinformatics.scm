@@ -1600,6 +1600,37 @@ the phenotype as it models the data.")
 generated using the PacBio Iso-Seq protocol.")
       (license license:bsd-3))))
 
+(define-public prodigal
+  (package
+    (name "prodigal")
+    (version "2.6.2")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append
+                    "https://github.com/hyattpd/Prodigal/archive/v"
+                    version ".tar.gz"))
+              (file-name (string-append name "-" version ".tar.gz"))
+              (sha256
+               (base32
+                "0m8sb0fg6lmxrlpzna0am6svbnlmd3dckrhgzxxgb3gxr5fyj284"))))
+    (build-system gnu-build-system)
+    (arguments
+     `(#:tests? #f ;no check target
+       #:make-flags (list (string-append "INSTALLDIR="
+                                         (assoc-ref %outputs "out")
+                                         "/bin"))
+       #:phases
+       (modify-phases %standard-phases
+         (delete 'configure))))
+    (home-page "http://prodigal.ornl.gov")
+    (synopsis "Protein-coding gene prediction for Archaea and Bacteria")
+    (description
+     "Prodigal runs smoothly on finished genomes, draft genomes, and
+metagenomes, providing gene predictions in GFF3, Genbank, or Sequin table
+format.  It runs quickly, in an unsupervised fashion, handles gaps, handles
+partial genes, and identifies translation initiation sites.")
+    (license license:gpl3+)))
+
 (define-public rsem
   (package
     (name "rsem")
@@ -1724,7 +1755,7 @@ distribution, coverage uniformity, strand specificity, etc.")
 (define-public samtools
   (package
     (name "samtools")
-    (version "1.1")
+    (version "1.2")
     (source
      (origin
        (method url-fetch)
@@ -1733,7 +1764,7 @@ distribution, coverage uniformity, strand specificity, etc.")
                        version "/samtools-" version ".tar.bz2"))
        (sha256
         (base32
-         "1y5p2hs4gif891b4ik20275a8xf3qrr1zh9wpysp4g8m0g1jckf2"))))
+         "1akdqb685pk9xk1nb6sa9aq8xssjjhvvc06kp4cpdqvz2157l3j2"))))
     (build-system gnu-build-system)
     (arguments
      `(;; There are 87 test failures when building on non-64-bit architectures
@@ -1743,6 +1774,10 @@ distribution, coverage uniformity, strand specificity, etc.")
        ;; systems.
        #:tests? ,(string=? (or (%current-system) (%current-target-system))
                            "x86_64-linux")
+       #:modules ((ice-9 ftw)
+                  (ice-9 regex)
+                  (guix build gnu-build-system)
+                  (guix build utils))
        #:make-flags (list "LIBCURSES=-lncurses"
                           (string-append "prefix=" (assoc-ref %outputs "out")))
        #:phases
@@ -1767,7 +1802,18 @@ distribution, coverage uniformity, strand specificity, etc.")
            (let ((lib (string-append (assoc-ref outputs "out") "/lib")))
              (mkdir-p lib)
              (copy-file "libbam.a" (string-append lib "/libbam.a"))))
-         (alist-delete 'configure %standard-phases)))))
+         (alist-cons-after
+          'install 'install-headers
+          (lambda* (#:key outputs #:allow-other-keys)
+            (let ((include (string-append (assoc-ref outputs "out")
+                                          "/include/samtools/")))
+              (mkdir-p include)
+              (for-each (lambda (file)
+                          (copy-file file (string-append include
+                                                         (basename file))))
+                        (scandir "." (lambda (name) (string-match "\\.h$" name))))
+              #t))
+          (alist-delete 'configure %standard-phases))))))
     (native-inputs `(("pkg-config" ,pkg-config)))
     (inputs `(("ncurses" ,ncurses)
               ("perl" ,perl)
@@ -2040,6 +2086,62 @@ subsequent visualization, annotation and storage of results.")
     ;; Code is released under GPLv2, except for fisher.h, which is under
     ;; LGPLv2.1+
     (license (list license:gpl2 license:lgpl2.1+))))
+
+(define-public preseq
+  (package
+    (name "preseq")
+    (version "1.0.2")
+    (source (origin
+              (method url-fetch)
+              (uri
+               (string-append "http://smithlabresearch.org/downloads/preseq-"
+                              version ".tar.bz2"))
+              (sha256
+               (base32 "0r7sw07p6nv8ygvc17gd78lisbw5336v3vhs86b5wv8mw3pwqksc"))
+              (patches (list (search-patch "preseq-1.0.2-install-to-PREFIX.patch")
+                             (search-patch "preseq-1.0.2-link-with-libbam.patch")))
+              (modules '((guix build utils)))
+              (snippet
+               ;; Remove bundled samtools.
+               '(delete-file-recursively "preseq-master/samtools"))))
+    (build-system gnu-build-system)
+    (arguments
+     `(#:tests? #f ;no "check" target
+       #:phases
+       (modify-phases %standard-phases
+         (add-after
+          'unpack 'enter-dir
+          (lambda _
+            (chdir "preseq-master")
+            #t))
+         (add-after
+          'enter-dir 'use-samtools-headers
+          (lambda _
+            (substitute* '("smithlab_cpp/SAM.cpp"
+                           "smithlab_cpp/SAM.hpp")
+              (("sam.h") "samtools/sam.h"))
+            #t))
+         (delete 'configure))
+       #:make-flags (list (string-append "PREFIX="
+                                         (assoc-ref %outputs "out"))
+                          (string-append "LIBBAM="
+                                         (assoc-ref %build-inputs "samtools")
+                                         "/lib/libbam.a"))))
+    (inputs
+     `(("gsl" ,gsl)
+       ("samtools" ,samtools-0.1)
+       ("zlib" ,zlib)))
+    (home-page "http://smithlabresearch.org/software/preseq/")
+    (synopsis "Program for analyzing library complexity")
+    (description
+     "The preseq package is aimed at predicting and estimating the complexity
+of a genomic sequencing library, equivalent to predicting and estimating the
+number of redundant reads from a given sequencing depth and how many will be
+expected from additional sequencing using an initial sequencing experiment.
+The estimates can then be used to examine the utility of further sequencing,
+optimize the sequencing depth, or to screen multiple libraries to avoid low
+complexity samples.")
+    (license license:gpl3+)))
 
 (define-public sra-tools
   (package

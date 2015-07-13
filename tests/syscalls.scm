@@ -1,5 +1,6 @@
 ;;; GNU Guix --- Functional package management for GNU
 ;;; Copyright © 2014, 2015 Ludovic Courtès <ludo@gnu.org>
+;;; Copyright © 2015 David Thompson <davet@gnu.org>
 ;;;
 ;;; This file is part of GNU Guix.
 ;;;
@@ -17,6 +18,7 @@
 ;;; along with GNU Guix.  If not, see <http://www.gnu.org/licenses/>.
 
 (define-module (test-syscalls)
+  #:use-module (guix utils)
   #:use-module (guix build syscalls)
   #:use-module (srfi srfi-1)
   #:use-module (srfi srfi-26)
@@ -66,6 +68,89 @@
       #f)
     (lambda args
       (memv (system-error-errno args) (list EPERM EINVAL ENOENT)))))
+
+(test-assert "mkdtemp!"
+  (let* ((tmp (or (getenv "TMPDIR") "/tmp"))
+         (dir (mkdtemp! (string-append tmp "/guix-test-XXXXXX"))))
+    (and (file-exists? dir)
+         (begin
+           (rmdir dir)
+           #t))))
+
+(define (user-namespace pid)
+  (string-append "/proc/" (number->string pid) "/ns/user"))
+
+(unless (file-exists? (user-namespace (getpid)))
+  (test-skip 1))
+(test-assert "clone"
+  (match (clone (logior CLONE_NEWUSER SIGCHLD))
+    (0 (primitive-exit 42))
+    (pid
+     ;; Check if user namespaces are different.
+     (and (not (equal? (readlink (user-namespace pid))
+                       (readlink (user-namespace (getpid)))))
+          (match (waitpid pid)
+            ((_ . status)
+             (= 42 (status:exit-val status))))))))
+
+(unless (file-exists? (user-namespace (getpid)))
+  (test-skip 1))
+(test-assert "setns"
+  (match (clone (logior CLONE_NEWUSER SIGCHLD))
+    (0 (primitive-exit 0))
+    (clone-pid
+     (match (pipe)
+       ((in . out)
+        (match (primitive-fork)
+          (0
+           (close in)
+           ;; Join the user namespace.
+           (call-with-input-file (user-namespace clone-pid)
+             (lambda (port)
+               (setns (port->fdes port) 0)))
+           (write 'done out)
+           (close out)
+           (primitive-exit 0))
+          (fork-pid
+           (close out)
+           ;; Wait for the child process to join the namespace.
+           (read in)
+           (let ((result (and (equal? (readlink (user-namespace clone-pid))
+                                      (readlink (user-namespace fork-pid))))))
+             ;; Clean up.
+             (waitpid clone-pid)
+             (waitpid fork-pid)
+             result))))))))
+
+(unless (file-exists? (user-namespace (getpid)))
+  (test-skip 1))
+(test-assert "pivot-root"
+  (match (pipe)
+    ((in . out)
+     (match (clone (logior CLONE_NEWUSER CLONE_NEWNS SIGCHLD))
+       (0
+        (close in)
+        (call-with-temporary-directory
+         (lambda (root)
+           (let ((put-old (string-append root "/real-root")))
+             (mount "none" root "tmpfs")
+             (mkdir put-old)
+             (call-with-output-file (string-append root "/test")
+               (lambda (port)
+                 (display "testing\n" port)))
+             (pivot-root root put-old)
+             ;; The test file should now be located inside the root directory.
+             (write (file-exists? "/test") out)
+             (close out))))
+        (primitive-exit 0))
+       (pid
+        (close out)
+        (let ((result (read in)))
+          (close in)
+          (and (zero? (match (waitpid pid)
+                        ((_ . status)
+                         (status:exit-val status))))
+               (eq? #t result))))))))
 
 (test-assert "all-network-interfaces"
   (match (all-network-interfaces)

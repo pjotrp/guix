@@ -47,12 +47,12 @@
   #:use-module (gnu packages multiprecision)
   #:use-module (gnu packages networking)
   #:use-module (gnu packages ncurses)
-  #:use-module (gnu packages openssl)
   #:use-module (gnu packages perl)
   #:use-module (gnu packages pkg-config)
   #:use-module (gnu packages readline)
   #:use-module (gnu packages texlive)
   #:use-module (gnu packages texinfo)
+  #:use-module (gnu packages tls)
   #:use-module (gnu packages web)
   #:use-module (gnu packages base)
   #:use-module (gnu packages xml)
@@ -1316,9 +1316,10 @@ subprocess and see the output as well as any file modifications.")
         (base32
          "1dyml28ykpl5jb9khdmcdvhy1cxqingys6qvj2k04fzlaj6z3bbx"))))
     (build-system python-build-system)
+    (propagated-inputs
+     `(("python-mimeparse" ,python-mimeparse)))
     (inputs
      `(("python-setuptools" ,python-setuptools)
-       ("python-mimeparse" ,python-mimeparse)
        ("python-extras" ,python-extras)))
     (home-page "https://github.com/testing-cabal/testtools")
     (synopsis

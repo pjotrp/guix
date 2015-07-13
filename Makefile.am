@@ -1,6 +1,7 @@
 # GNU Guix --- Functional package management for GNU
 # Copyright © 2012, 2013, 2014, 2015 Ludovic Courtès <ludo@gnu.org>
 # Copyright © 2013 Andreas Enge <andreas@enge.fr>
+# Copyright © 2015 Alex Kost <alezost@gmail.com>
 #
 # This file is part of GNU Guix.
 #
@@ -50,6 +51,7 @@ MODULES =					\
   guix/licenses.scm				\
   guix/build-system.scm				\
   guix/build-system/cmake.scm			\
+  guix/build-system/emacs.scm			\
   guix/build-system/glib-or-gtk.scm		\
   guix/build-system/gnu.scm			\
   guix/build-system/haskell.scm			\
@@ -68,6 +70,7 @@ MODULES =					\
   guix/ui.scm					\
   guix/build/download.scm			\
   guix/build/cmake-build-system.scm		\
+  guix/build/emacs-build-system.scm		\
   guix/build/git.scm				\
   guix/build/glib-or-gtk-build-system.scm	\
   guix/build/gnu-build-system.scm		\
@@ -96,6 +99,7 @@ MODULES =					\
   guix/import/snix.scm				\
   guix/import/cabal.scm				\
   guix/import/hackage.scm			\
+  guix/import/elpa.scm   			\
   guix/scripts/download.scm			\
   guix/scripts/build.scm			\
   guix/scripts/archive.scm			\
@@ -112,6 +116,7 @@ MODULES =					\
   guix/scripts/import/gnu.scm			\
   guix/scripts/import/nix.scm			\
   guix/scripts/import/hackage.scm		\
+  guix/scripts/import/elpa.scm  		\
   guix/scripts/environment.scm			\
   guix/scripts/publish.scm			\
   guix/scripts/edit.scm				\
@@ -186,6 +191,7 @@ SCM_TESTS =					\
   tests/packages.scm				\
   tests/snix.scm				\
   tests/hackage.scm				\
+  tests/elpa.scm				\
   tests/store.scm				\
   tests/monads.scm				\
   tests/gexp.scm				\
@@ -196,7 +202,8 @@ SCM_TESTS =					\
   tests/gremlin.scm				\
   tests/lint.scm				\
   tests/publish.scm				\
-  tests/size.scm
+  tests/size.scm				\
+  tests/containers.scm
 
 if HAVE_GUILE_JSON
 
@@ -363,7 +370,9 @@ guix-binary.%.tar.xz:
 	  "$(top_srcdir)/build-aux/make-binary-tarball.scm" "$*" "$@"
 
 
-dist-hook: sync-descriptions gen-ChangeLog assert-no-store-file-names
+dist-hook: sync-descriptions gen-ChangeLog gen-AUTHORS
+dist-hook: assert-no-store-file-names
+
 distcheck-hook: assert-binaries-available assert-final-inputs-self-contained
 
 sync-descriptions:
@@ -377,6 +386,11 @@ gen-ChangeLog:
 	  rm -f $(distdir)/ChangeLog;			\
 	  mv $(distdir)/cl-t $(distdir)/ChangeLog;	\
 	fi
+
+gen-AUTHORS:
+	$(top_builddir)/pre-inst-env "$(GUILE)"			\
+	  "$(top_srcdir)/build-aux/generate-authors.scm"	\
+	  "$(top_srcdir)" "$(distdir)/AUTHORS"
 
 # Make sure we're not shipping a file that embeds a local /gnu/store file name.
 assert-no-store-file-names:
@@ -397,6 +411,6 @@ assert-final-inputs-self-contained:
 	$(top_builddir)/pre-inst-env "$(GUILE)"				\
 	  "$(top_srcdir)/build-aux/check-final-inputs-self-contained.scm"
 
-.PHONY: sync-descriptions gen-ChangeLog clean-go
+.PHONY: sync-descriptions gen-ChangeLog gen-AUTHORS clean-go
 .PHONY: assert-no-store-file-names assert-binaries-available
 .PHONY: assert-final-inputs-self-contained
