@@ -40,23 +40,9 @@ directory."
     ((file-name . _) file-name)
     (() (error "No files matching pattern: " pattern))))
 
-;; Most gemspecs assume that builds are taking place within a git repository
-;; by include calls to 'git ls-files'.  In order for these gemspecs to work
-;; as-is, every file in the source tree is added to the staging area.
-(define gitify
-  (lambda _
-    (and (zero? (system* "git" "init"))
-         (zero? (system* "git" "add" ".")))))
-
-(define build
-  (lambda _
-    (match (find-files "." "\\.gemspec$")
-      ;; No gemspec, try 'rake gem' instead.
-      (()
-       (zero? (system* "rake" "gem")))
-      ;; Build the first matching gemspec.
-      ((gemspec . _)
-       (zero? (system* "gem" "build" gemspec))))))
+(define* (unpack #:key source #:allow-other-keys)
+  "Simple copy of source into the build directory"
+  (copy-file source (basename source)))
 
 (define* (check #:key tests? test-target #:allow-other-keys)
   (if tests?
@@ -72,7 +58,7 @@ directory."
          (gem-home (string-append out "/lib/ruby/gems/" ruby-version ".0")))
     (setenv "GEM_HOME" gem-home)
     (mkdir-p gem-home)
-    (zero? (system* "gem" "install" "--local"
+    (zero? (system* "gem" "install" "--ignore-dependencies" "--local"
                     (first-matching-file "\\.gem$")
                     ;; Executables should go into /bin, not /lib/ruby/gems.
                     "--bindir" (string-append out "/bin")))))
@@ -80,10 +66,14 @@ directory."
 (define %standard-phases
   (modify-phases gnu:%standard-phases
     (delete 'configure)
-    (add-after 'unpack 'gitify gitify)
-    (replace 'build build)
+    (delete 'build)
+    (delete 'check)
+    ; (add-after 'unpack 'gitify gitify)
+    ; (replace 'build build)
+    (replace 'unpack unpack)
     (replace 'install install)
-    (replace 'check check)))
+    ; (replace 'check check)
+    ))
 
 (define* (rubygem-build #:key inputs (phases %standard-phases)
                      #:allow-other-keys #:rest args)
