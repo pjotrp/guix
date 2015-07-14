@@ -530,8 +530,7 @@ using Net::HTTP, supporting reconnection and retry according to RFC 2616.")
                     "https://github.com/sparklemotion/nokogiri/archive/v"
                     version ".tar.gz"))
               (file-name (string-append name "-" version ".tar.gz"))
-              (patches (map search-patch
-                            (list "ruby-nokogiri-Rakefile.patch")))
+              (patches (list (search-patch "ruby-nokogiri-Rakefile.patch")))
               (sha256
                (base32
                 "1dpmmxr8azbyvhhmw9hpyk3dds577vsd6c312gh2s7kgjd98nd9j"))))
