@@ -34,7 +34,9 @@
   #:use-module (guix git-download)
   #:use-module (guix utils)
   #:use-module (guix build-system gnu)
-  #:use-module (guix build-system ruby))
+  #:use-module (gnu packages xml)
+  #:use-module (guix build-system ruby)
+  #:use-module (guix build-system rubygem))
 
 (define-public ruby
   (package
@@ -223,6 +225,30 @@ transliteration to ASCII, flexible defaults, bulk lookup, lambdas as
 translation data, custom key/scope separator, custom exception handlers, and
 an extensible architecture with a swappable backend.")
     (home-page "http://github.com/svenfuchs/i18n")
+    (license license:expat)))
+
+(define-public ruby-log4r
+  (package
+    (name "ruby-log4r")
+    (version "1.1.10")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append
+                    "https://rubygems.org/downloads/log4r-"
+                    version ".gem"))
+              ;; (file-name (string-append name "-" version ".tar.gz"))
+              (sha256
+               (base32
+                "0ri90q0frfmigkirqv5ihyrj59xm8pq5zcmf156cbdv4r4l2jicv"))))
+    (build-system rubygem-build-system)
+    ;; (native-inputs
+    ;;  `(("rake" ,ruby-minitest)))
+    (synopsis "A flexible logging library for Ruby")
+    (description "Ruby Log4r features a hierarchical logging system of
+any number of levels, custom level names, logger inheritance, multiple
+output destinations per log event, execution tracing, custom
+formatting, thread safteyness, XML and YAML configuration, and more.")
+    (home-page "http://log4r.rubyforge.org/")
     (license license:expat)))
 
 ;; RSpec is the dominant testing library for Ruby projects.  Even RSpec's
@@ -518,6 +544,52 @@ interface for Ruby programs.")
 using Net::HTTP, supporting reconnection and retry according to RFC 2616.")
     (home-page "https://github.com/drbrain/net-http-persistent")
     (license license:expat)))
+
+(define-public ruby-nokogiri
+  (package
+    (name "ruby-nokogiri")
+    (version "1.6.6.2")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append
+                    "https://github.com/sparklemotion/nokogiri/archive/v"
+                    version ".tar.gz"))
+              (file-name (string-append name "-" version ".tar.gz"))
+              (patches (list (search-patch "ruby-nokogiri-Rakefile.patch")))
+              (sha256
+               (base32
+                "1dpmmxr8azbyvhhmw9hpyk3dds577vsd6c312gh2s7kgjd98nd9j"))))
+    (build-system ruby-build-system)
+    (arguments
+     '(#:tests? #f  ;; test fails because nokogiri can only test with
+                    ;; an installed extension (now part of install
+                    ;; phase
+       #:gem-flags (list "--use-system-libraries"
+                     (string-append "--with-xml2-include="
+                       (assoc-ref %build-inputs "libxml2")
+                       "/include/libxml2" ))
+       #:phases
+         (modify-phases %standard-phases
+           (replace 'build
+                    (lambda _
+                      ;; calling rake gem 2x begets a gem. The first time
+                      ;; only the build-dir is created
+                      (zero? (begin
+                               (system* "rake" "gem")
+                               (system* "rake" "gem"))))))))
+    (native-inputs
+     `(("ruby-hoe" ,ruby-hoe)
+       ("ruby-rake-compiler", ruby-rake-compiler)))
+    (inputs
+     `(("zlib" ,zlib)
+       ("libxml2" ,libxml2)
+       ("libxslt" ,libxslt)))
+    (synopsis "Nokogiri (鋸) is an HTML, XML, SAX, and Reader parser")
+    (description "Nokogiri parses and searches XML/HTML very quickly,
+and also has correctly implemented CSS3 selector support as well as
+XPath 1.0 support.")
+    (home-page "http://www.nokogiri.org/")
+    (license license:x11)))
 
 (define-public ruby-minitest
   (package
