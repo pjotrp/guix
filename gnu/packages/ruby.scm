@@ -527,10 +527,10 @@ using Net::HTTP, supporting reconnection and retry according to RFC 2616.")
     (source (origin
               (method url-fetch)
               (uri (string-append
-		    "https://github.com/sparklemotion/nokogiri/archive/v"
+                    "https://github.com/sparklemotion/nokogiri/archive/v"
                     version ".tar.gz"))
               (file-name (string-append name "-" version ".tar.gz"))
-	      (patches (map search-patch
+              (patches (map search-patch
                             (list "ruby-nokogiri-Rakefile.patch")))
               (sha256
                (base32
@@ -543,10 +543,10 @@ using Net::HTTP, supporting reconnection and retry according to RFC 2616.")
        #:phases (alist-replace
                  'build
                  (lambda _
-		   ;; calling rake gem 2x begets a gem
-		   (system* "rake" "gem")
-		   (zero? (system* "rake" "gem")))
-		  %standard-phases)))
+                   ;; calling rake gem 2x begets a gem
+                   (system* "rake" "gem")
+                   (zero? (system* "rake" "gem")))
+                  %standard-phases)))
     (native-inputs
      `(("ruby-hoe" ,ruby-hoe)
        ("ruby-rake-compiler", ruby-rake-compiler)))
