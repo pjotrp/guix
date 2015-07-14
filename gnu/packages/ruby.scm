@@ -546,11 +546,16 @@ using Net::HTTP, supporting reconnection and retry according to RFC 2616.")
        #:phases (alist-replace
                  'build
                  (lambda _
-                   ;; calling rake gem 2x begets a gem. The first time
-                   ;; only the build-dir is created
-                   (system* "rake" "gem")
-                   (zero? (system* "rake" "gem")))
                  %standard-phases)))
+       #:phases
+         (modify-phases %standard-phases
+           (replace 'build
+                    (lambda _
+                      ;; calling rake gem 2x begets a gem. The first time
+                      ;; only the build-dir is created
+                      (zero? (begin
+                               (system* "rake" "gem")
+                               (system* "rake" "gem"))))))
     (native-inputs
      `(("ruby-hoe" ,ruby-hoe)
        ("ruby-rake-compiler", ruby-rake-compiler)))
