@@ -234,20 +234,16 @@ an extensible architecture with a swappable backend.")
     (source (origin
               (method url-fetch)
               (uri (string-append
-                    "https://rubygems.org/downloads/log4r-"
-                    version ".gem"))
-              ;; (file-name (string-append name "-" version ".tar.gz"))
+                    "https://rubygems.org/downloads/log4r-" version ".gem"))
               (sha256
                (base32
                 "0ri90q0frfmigkirqv5ihyrj59xm8pq5zcmf156cbdv4r4l2jicv"))))
     (build-system rubygem-build-system)
-    ;; (native-inputs
-    ;;  `(("rake" ,ruby-minitest)))
     (synopsis "A flexible logging library for Ruby")
     (description "Ruby Log4r features a hierarchical logging system of
 any number of levels, custom level names, logger inheritance, multiple
 output destinations per log event, execution tracing, custom
-formatting, thread safteyness, XML and YAML configuration, and more.")
+formatting, thread safetyness, XML and YAML configuration, and more.")
     (home-page "http://log4r.rubyforge.org/")
     (license license:expat)))
 
