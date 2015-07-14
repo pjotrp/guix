@@ -543,10 +543,6 @@ using Net::HTTP, supporting reconnection and retry according to RFC 2616.")
                      (string-append "--with-xml2-include="
                        (assoc-ref %build-inputs "libxml2")
                        "/include/libxml2" ))
-       #:phases (alist-replace
-                 'build
-                 (lambda _
-                 %standard-phases)))
        #:phases
          (modify-phases %standard-phases
            (replace 'build
@@ -555,7 +551,7 @@ using Net::HTTP, supporting reconnection and retry according to RFC 2616.")
                       ;; only the build-dir is created
                       (zero? (begin
                                (system* "rake" "gem")
-                               (system* "rake" "gem"))))))
+                               (system* "rake" "gem"))))))))
     (native-inputs
      `(("ruby-hoe" ,ruby-hoe)
        ("ruby-rake-compiler", ruby-rake-compiler)))
