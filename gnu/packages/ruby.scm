@@ -537,16 +537,21 @@ using Net::HTTP, supporting reconnection and retry according to RFC 2616.")
                 "1dpmmxr8azbyvhhmw9hpyk3dds577vsd6c312gh2s7kgjd98nd9j"))))
     (build-system ruby-build-system)
     (arguments
-     '(
-       #:tests? #f  ;; test fails because nokogiri can only test with a built extension (now part of install phase)
-       #:gem-flags (list "--use-system-libraries" (string-append "--with-xml2-include=" (assoc-ref %build-inputs "libxml2") "/include/libxml2" ))
+     '(#:tests? #f  ;; test fails because nokogiri can only test with
+                    ;; an installed extension (now part of install
+                    ;; phase
+       #:gem-flags (list "--use-system-libraries"
+                     (string-append "--with-xml2-include="
+                       (assoc-ref %build-inputs "libxml2")
+                       "/include/libxml2" ))
        #:phases (alist-replace
                  'build
                  (lambda _
-                   ;; calling rake gem 2x begets a gem
+                   ;; calling rake gem 2x begets a gem. The first time
+                   ;; only the build-dir is created
                    (system* "rake" "gem")
                    (zero? (system* "rake" "gem")))
-                  %standard-phases)))
+                 %standard-phases)))
     (native-inputs
      `(("ruby-hoe" ,ruby-hoe)
        ("ruby-rake-compiler", ruby-rake-compiler)))
@@ -555,7 +560,9 @@ using Net::HTTP, supporting reconnection and retry according to RFC 2616.")
        ("libxml2" ,libxml2)
        ("libxslt" ,libxslt)))
     (synopsis "Nokogiri (鋸) is an HTML, XML, SAX, and Reader parser")
-    (description "Nokogiri parses and searches XML/HTML very quickly, and also has correctly implemented CSS3 selector support as well as XPath 1.0 support.")
+    (description "Nokogiri parses and searches XML/HTML very quickly,
+and also has correctly implemented CSS3 selector support as well as
+XPath 1.0 support.")
     (home-page "http://www.nokogiri.org/")
     (license license:x11)))
 
