@@ -86,6 +86,7 @@ GNU_SYSTEM_MODULES =				\
   gnu/packages/dns.scm				\
   gnu/packages/docbook.scm			\
   gnu/packages/doxygen.scm			\
+  gnu/packages/dunst.scm			\
   gnu/packages/ebook.scm			\
   gnu/packages/ed.scm				\
   gnu/packages/elf.scm				\
@@ -192,6 +193,7 @@ GNU_SYSTEM_MODULES =				\
   gnu/packages/lsh.scm				\
   gnu/packages/lsof.scm				\
   gnu/packages/lua.scm				\
+  gnu/packages/lxde.scm				\
   gnu/packages/lxqt.scm				\
   gnu/packages/lynx.scm				\
   gnu/packages/m4.scm				\
@@ -410,6 +412,7 @@ dist_patch_DATA =						\
   gnu/packages/patches/cpio-fix-symlink-bad-length-test.patch	\
   gnu/packages/patches/cpio-gets-undeclared.patch		\
   gnu/packages/patches/cpufrequtils-fix-aclocal.patch		\
+  gnu/packages/patches/crda-optional-gcrypt.patch		\
   gnu/packages/patches/crossmap-allow-system-pysam.patch	\
   gnu/packages/patches/cssc-gets-undeclared.patch               \
   gnu/packages/patches/cssc-missing-include.patch               \
@@ -469,22 +472,7 @@ dist_patch_DATA =						\
   gnu/packages/patches/hwloc-gather-topology-lstopo.patch	\
   gnu/packages/patches/hydra-automake-1.15.patch		\
   gnu/packages/patches/hydra-disable-darcs-test.patch		\
-  gnu/packages/patches/icecat-CVE-2015-2722-pt1.patch		\
-  gnu/packages/patches/icecat-CVE-2015-2722-pt2.patch		\
-  gnu/packages/patches/icecat-CVE-2015-2724-pt1.patch		\
-  gnu/packages/patches/icecat-CVE-2015-2724-pt2.patch		\
-  gnu/packages/patches/icecat-CVE-2015-2724-pt3.patch		\
-  gnu/packages/patches/icecat-CVE-2015-2724-pt4.patch		\
-  gnu/packages/patches/icecat-CVE-2015-2728-pt1.patch		\
-  gnu/packages/patches/icecat-CVE-2015-2728-pt2.patch		\
-  gnu/packages/patches/icecat-CVE-2015-2733-pt1.patch		\
-  gnu/packages/patches/icecat-CVE-2015-2733-pt2.patch		\
-  gnu/packages/patches/icecat-CVE-2015-2735.patch		\
-  gnu/packages/patches/icecat-CVE-2015-2736.patch		\
-  gnu/packages/patches/icecat-CVE-2015-2738.patch		\
-  gnu/packages/patches/icecat-CVE-2015-2739.patch		\
-  gnu/packages/patches/icecat-CVE-2015-2740.patch		\
-  gnu/packages/patches/icecat-CVE-2015-2743.patch		\
+  gnu/packages/patches/icecat-enable-acceleration-and-webgl.patch \
   gnu/packages/patches/icecat-libvpx-1.4.patch			\
   gnu/packages/patches/irrlicht-mesa-10.patch			\
   gnu/packages/patches/jbig2dec-ignore-testtest.patch		\

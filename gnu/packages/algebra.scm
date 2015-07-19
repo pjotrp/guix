@@ -56,7 +56,7 @@ arbitrary precision real (mpfr) or complex (mpc) numbers, without control
 on the rounding.  For the time being, only the few functions needed to
 implement the floating point approach to complex multiplication are
 implemented.  On the other hand, these comprise asymptotically fast
-multiplication routines such as Toom–Cook and the FFT. ")
+multiplication routines such as Toom–Cook and the FFT.")
    (license lgpl2.1+)
    (home-page "http://mpfrcx.multiprecision.org/")))
 
@@ -383,7 +383,7 @@ cosine/ sine transforms or DCT/DST).")
                  (lambda _
                    ;; First build the tests, in parallel.
                    ;; See <http://eigen.tuxfamily.org/index.php?title=Tests>.
-                   (let* ((cores  (current-processor-count))
+                   (let* ((cores  (parallel-job-count))
                           (dash-j (format #f "-j~a" cores)))
                      ;; These variables are supposed to be honored.
                      (setenv "EIGEN_MAKE_ARGS" dash-j)

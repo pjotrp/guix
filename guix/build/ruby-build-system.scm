@@ -73,11 +73,11 @@ directory."
          (gem-home (string-append out "/lib/ruby/gems/" ruby-version ".0")))
     (setenv "GEM_HOME" gem-home)
     (mkdir-p gem-home)
-    (zero? (system* "gem" "install" "--local"
-                    (first-matching-file "\\.gem$")
-                    ;; Executables should go into /bin, not /lib/ruby/gems.
-                    "--bindir" (string-append out "/bin") "--"
-                    (string-join (cond (null? gem-flags)('())(gem-flags)))))))
+    (zero? (apply system* "gem" "install" "--local"
+                  (first-matching-file "\\.gem$")
+                  ;; Executables should go into /bin, not /lib/ruby/gems.
+                  "--bindir" (string-append out "/bin")
+                  gem-flags))))
 
 (define %standard-phases
   (modify-phases gnu:%standard-phases

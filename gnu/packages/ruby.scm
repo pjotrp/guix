@@ -196,7 +196,7 @@ announcement.")
                       ;; dependencies are not available right now.
                       (delete-file "tasks/cucumber.rake"))))))
     (synopsis "Building and packaging helper for Ruby native extensions")
-    (description "Rake-compiler proivides a framework for building and
+    (description "Rake-compiler provides a framework for building and
 packaging native C and Java extensions in Ruby.")
     (home-page "https://github.com/rake-compiler/rake-compiler")
     (license license:expat)))
@@ -317,7 +317,7 @@ standard diff-like tool.")
     (propagated-inputs
      `(("ruby-rspec-support" ,ruby-rspec-support)
        ("ruby-diff-lcs" ,ruby-diff-lcs-for-rspec)))
-    (synopsis "RSpec expecations library")
+    (synopsis "RSpec expectations library")
     (description "Rspec-expectations provides a simple API to express expected
 outcomes of a code example.")
     (home-page "https://github.com/rspec/rspec-expectations")
