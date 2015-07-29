@@ -284,6 +284,7 @@
   ;; because we don't need the stand-alone Info reader.
   ;; Also, use %BOOT0-INPUTS to avoid building Perl once more.
   (let ((texinfo (package (inherit texinfo)
+                   (native-inputs '())
                    (inputs (alist-delete "ncurses" (package-inputs texinfo))))))
     (package-with-bootstrap-guile
      (package-with-explicit-inputs texinfo %boot0-inputs
@@ -829,7 +830,7 @@ and binaries, plus debugging symbols in the 'debug' output), and Binutils.")
 (define-public gcc-toolchain-4.9
   (gcc-toolchain gcc-4.9))
 
-(define-public gcc-toolchain-5.1
-  (gcc-toolchain gcc-5.1))
+(define-public gcc-toolchain-5
+  (gcc-toolchain gcc-5))
 
 ;;; commencement.scm ends here

@@ -72,7 +72,15 @@
                         "-Dinstallstyle=lib/perl5"
                         "-Duseshrplib"
                         (string-append "-Dlocincpth=" libc "/include")
-                        (string-append "-Dloclibpth=" libc "/lib"))))))
+                        (string-append "-Dloclibpth=" libc "/lib")
+
+                        ;; Force the library search path to contain only libc
+                        ;; because it is recorded in Config.pm and
+                        ;; Config_heavy.pl; we don't want to keep a reference
+                        ;; to everything that's in $LIBRARY_PATH at build
+                        ;; time (Binutils, bzip2, file, etc.)
+                        (string-append "-Dlibpth=" libc "/lib")
+                        (string-append "-Dplibpth=" libc "/lib"))))))
 
          (add-before
           'strip 'make-shared-objects-writable
@@ -1148,7 +1156,7 @@ The maths behind this is unfortunately fiddly, hence this module.")
     (synopsis "Structured tags datastructures")
     (description
      "This module is for manipulating data as hierarchical tag/value
-pairs (Structured TAGs or Simple Tree AGgreggates).  These datastructures can
+pairs (Structured TAGs or Simple Tree AGgregates).  These datastructures can
 be represented as nested arrays, which have the advantage of being native to
 Perl.")
     (license (package-license perl))))
@@ -5610,9 +5618,9 @@ the system epoch.")
          "11lf54akr9nbivqkjrhvkmfdgkbhw85sq0q4mak56n6bf542bgbm"))))
     (build-system perl-build-system)
     (home-page "http://search.cpan.org/dist/TimeDate")
-    (synopsis "Date parsing/formating subroutines")
+    (synopsis "Date parsing/formatting subroutines")
     (description "This module provides routines for parsing date string into
-time values and formating dates into ASCII strings.")
+time values and formatting dates into ASCII strings.")
     (license (package-license perl))))
 
 (define-public perl-time-mock

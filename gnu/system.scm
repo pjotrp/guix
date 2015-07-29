@@ -103,7 +103,7 @@
   make-operating-system
   operating-system?
   (kernel operating-system-kernel                 ; package
-          (default linux-libre))
+          (default linux-libre-4.0))
   (kernel-arguments operating-system-kernel-arguments
                     (default '()))                ; list of gexps/strings
   (bootloader operating-system-bootloader)        ; <grub-configuration>
@@ -641,6 +641,7 @@ use 'plain-file' instead~%")
     (list #~(string-append #$shadow "/bin/passwd")
           #~(string-append #$shadow "/bin/su")
           #~(string-append #$inetutils "/bin/ping")
+          #~(string-append #$inetutils "/bin/ping6")
           #~(string-append #$sudo "/bin/sudo")
           #~(string-append #$fuse "/bin/fusermount"))))
 

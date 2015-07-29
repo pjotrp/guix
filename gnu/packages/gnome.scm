@@ -83,6 +83,9 @@
   #:use-module (gnu packages backup)
   #:use-module (gnu packages nettle)
   #:use-module (gnu packages ncurses)
+  #:use-module (gnu packages video)
+  #:use-module (gnu packages cdrom)
+  #:use-module (gnu packages samba)
   #:use-module (srfi srfi-1))
 
 (define-public brasero
@@ -1110,8 +1113,7 @@ to access local and remote files with a single consistent API.")
           (substitute* "libgnome/Makefile.in"
             (("-DG_DISABLE_DEPRECATED") "-DGLIB_DISABLE_DEPRECATION_WARNINGS")))
         %standard-phases)))
-    (inputs `(("popt" ,popt)
-              ("libxml2" ,libxml2)))
+    (inputs `(("libxml2" ,libxml2)))
     (native-inputs
      `(("glib" ,glib "bin")             ; for glib-mkenums, etc.
        ("intltool" ,intltool)
@@ -1124,7 +1126,8 @@ to access local and remote files with a single consistent API.")
      `(("libcanberra" ,libcanberra)
        ("libbonobo" ,libbonobo)
        ("gconf" ,gconf)
-       ("gnome-vfs" ,gnome-vfs)))
+       ("gnome-vfs" ,gnome-vfs)
+       ("popt" ,popt)))                       ;gnome-program.h includes popt.h
     (home-page "https://developer.gnome.org/libgnome/")
     (synopsis "Useful routines for building applications")
     (description  "The libgnome library provides a number of useful routines
@@ -2181,11 +2184,14 @@ keyboard shortcuts.")
        ("gobject-introspection" ,gobject-introspection)
        ("libtool" ,libtool)
        ("intltool" ,intltool)))
+    (propagated-inputs
+     ;; colord.pc refers to all these.
+     `(("glib" ,glib)
+       ("udev" ,eudev)
+       ("lcms" ,lcms)))
     (inputs
-     `(("eudev" ,eudev)
-       ("dbus-glib" ,dbus-glib)
+     `(("dbus-glib" ,dbus-glib)
        ("libusb" ,libusb)
-       ("lcms" ,lcms)
        ("sqlite" ,sqlite)
        ("polkit" ,polkit)
        ("sane-backends" ,sane-backends)))
@@ -2315,8 +2321,8 @@ faster results and to avoid unnecessary server load.")
        ("intltool" ,intltool)
        ("python" ,python)))
     (inputs
-     `(("eudev" ,eudev)
-       ("dbus-glib" ,dbus-glib)
+     `(("dbus-glib" ,dbus-glib)
+       ("libgudev" ,libgudev)
        ("libusb" ,libusb)))
     (home-page "http://upower.freedesktop.org/")
     (synopsis "System daemon for managing power devices")
@@ -2401,7 +2407,7 @@ services for numerous locations.")
        ("docbook-xsl" ,docbook-xsl)))
     (inputs
      `(("colord" ,colord)
-       ("eudev" ,eudev)
+       ("libgudev" ,libgudev)
        ("upower" ,upower)
        ("polkit" ,polkit)
        ("pulseaudio" ,pulseaudio)
@@ -3001,8 +3007,8 @@ which can read a large number of file formats.")
       ("gstreamer" ,gstreamer)
       ("gst-plugins-base" ,gst-plugins-base)
       ("gst-plugins-good" ,gst-plugins-good)
-      ("eudev" ,eudev)
       ("totem-pl-parser" ,totem-pl-parser)
+      ("libgudev" ,libgudev)
       ;;("libmtp" ,libmtp) FIXME: Not detected
       ("libsecret" ,libsecret)
       ("libsoup" ,libsoup)
@@ -3077,3 +3083,82 @@ supports playlists, song ratings, and any codecs installed through gstreamer.")
    (description "Eye of GNOME is the GNOME image viewer.  It
 supports image conversion, rotation, and slideshows.")
    (license license:gpl2+)))
+
+(define-public libgudev
+  (package
+    (name "libgudev")
+    (version "230")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "mirror://gnome/sources/" name "/"
+                                  version "/" name "-" version ".tar.xz"))
+              (sha256
+               (base32
+                "063w6j35n0i0ssmv58kivc1mw4070z6fzb83hi4xfrhcxnn7zrx2"))))
+    (build-system gnu-build-system)
+    (native-inputs
+     `(("glib:bin" ,glib "bin") ; for glib-genmarshal, etc.
+       ("gobject-introspection" ,gobject-introspection)
+       ("pkg-config" ,pkg-config)))
+    (propagated-inputs
+     `(("glib" ,glib))) ; required by gudev-1.0.pc
+    (inputs
+     `(("udev" ,eudev)))
+    (home-page "https://wiki.gnome.org/Projects/libgudev")
+    (synopsis "GObject bindings for libudev")
+    (description
+     "This library provides GObject bindings for libudev.  It was originally
+part of udev-extras, then udev, then systemd.  It's now a project on its own.")
+    (license license:lgpl2.1+)))
+
+(define-public gvfs
+  (package
+    (name "gvfs")
+    (version "1.24.1")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "mirror://gnome/sources/" name "/"
+                                  (version-major+minor version) "/"
+                                  name "-" version ".tar.xz"))
+              (sha256
+               (base32
+                "1ygiknnd24qgzds8wif3jns981mqr65lgjlxs5pw65cl3376g0yk"))))
+    (build-system gnu-build-system)
+    (arguments
+     '(#:tests? #f)) ; XXX: requiring `pidof'
+    (native-inputs
+     `(("glib:bin" ,glib "bin") ; for glib-genmarshal, etc.
+       ("intltool" ,intltool)
+       ("pkg-config" ,pkg-config)
+       ("xsltproc" ,libxslt)))
+    (inputs
+     `(("avahi" ,avahi)
+       ("docbook-xml" ,docbook-xml-4.2)
+       ("docbook-xsl" ,docbook-xsl)
+       ("dbus" ,dbus)
+       ("fuse" ,fuse)
+       ("glib" ,glib)
+       ("libarchive" ,libarchive)
+       ("libbluray" ,libbluray)
+       ("libcdio-paranoia" ,libcdio-paranoia)
+       ("libgcrypt" ,libgcrypt)
+       ("libgphoto2" ,libgphoto2)
+       ("libgudev" ,libgudev)
+       ("libmtp" ,libmtp)
+       ("libsecret" ,libsecret)
+       ("libsmbclient" ,samba)
+       ("libsoup" ,libsoup)
+       ("libxml2" ,libxml2)
+       ("nettle" ,nettle) ; XXX: required by libarchive.pc
+       ("udisks" ,udisks)))
+    (home-page "https://wiki.gnome.org/gvfs/")
+    (synopsis "Userspace virtual filesystem for GIO")
+    (description
+     "GVFS is a userspace virtual filesystem designed to work with the I/O
+abstraction of GIO.  It contains a GIO module that seamlessly adds GVFS support
+to all applications using the GIO API.  It also supports exposing the GVFS
+mounts to non-GIO applications using FUSE.
+
+GVFS comes with a set of backends, including trash support, SFTP, SMB, HTTP,
+DAV, and others.")
+    (license license:lgpl2.0+)))

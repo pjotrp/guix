@@ -58,14 +58,14 @@
 (define-public httpd
   (package
     (name "httpd")
-    (version "2.4.12")
+    (version "2.4.16")
     (source (origin
              (method url-fetch)
              (uri (string-append "mirror://apache/httpd/httpd-"
                                  version ".tar.bz2"))
              (sha256
               (base32
-               "1r7a63ka41vlswrqbb21vall6sc7svwgd497kb6dh8a6zvnkjvdd"))))
+               "0hrpy6gjwma0kba7p7m61vwh82qcnkf08123lrwpg257m93hnrmc"))))
     (build-system gnu-build-system)
     (inputs `(("apr" ,apr)
               ("apr-util" ,apr-util)
@@ -272,7 +272,13 @@ parse JSON formatted strings back into the C representation of JSON objects.")
              (file-name (string-append name "-" version ".tar.gz"))
              (sha256
               (base32
-               "0rl6s0vg5y1dhh9vfl1lqay3sxf69sxjh0czxrjmasn7ng91wwf3"))))
+               "0rl6s0vg5y1dhh9vfl1lqay3sxf69sxjh0czxrjmasn7ng91wwf3"))
+             (modules '((guix build utils)))
+             (snippet
+              ;; Building with GCC 4.8 with -Werror was fine, but 4.9.3
+              ;; complains in new ways, so turn of -Werror.
+              '(substitute* (find-files "." "^CMakeLists\\.txt$")
+                 (("-Werror") "")))))
     (build-system cmake-build-system)
     (home-page "https://github.com/miloyip/rapidjson")
     (synopsis "JSON parser/generator for C++ with both SAX/DOM style API")
@@ -320,20 +326,14 @@ for efficient socket-like bidirectional reliable communication channels.")
 (define-public libpsl
   (package
     (name "libpsl")
-    (version "0.6.0")
+    (version "0.7.1")
     (source (origin
               (method url-fetch)
               (uri (string-append "https://github.com/rockdaboot/libpsl/"
-                                  "archive/" version ".tar.gz"))
+                                  "archive/libpsl-" version ".tar.gz"))
               (sha256
                (base32
-                "10s7xxxx6pp4ydp3san69sa6q379ih3pv92fyi565ggmlw8igv7a"))
-              (file-name (string-append name "-" version ".tar.gz"))
-              (modules '((guix build utils)))
-              (snippet
-               ;; Believe it or not, the .pc is invalid.  Fix it.
-               '(substitute* "libpsl.pc.in"
-                  (("-llibpsl") "-lpsl")))))
+                "1k0klj668c9v0r4993vfs3kq773mzdz61vsigqw6v1mjcwnf1si3"))))
     (build-system gnu-build-system)
     (inputs `(("icu4c" ,icu4c)))
     ;; The release tarball lacks the generated files.
@@ -341,7 +341,8 @@ for efficient socket-like bidirectional reliable communication channels.")
                      ("automake" ,automake)
                      ("gettext"  ,gnu-gettext)
                      ("which"    ,which)
-                     ("libtool"  ,libtool)))
+                     ("libtool"  ,libtool)
+                     ("pkg-config" ,pkg-config)))
     (arguments
      `(#:phases (alist-cons-after
                  'unpack 'bootstrap
@@ -380,7 +381,8 @@ UTS#46.")
                     (revision "2009-12-23")))
               (sha256
                (base32
-                "14dsnmirjcrvwsffqp3as70qr6bbfaig2fv3zvs5g7005jrsbvpb"))))
+                "14dsnmirjcrvwsffqp3as70qr6bbfaig2fv3zvs5g7005jrsbvpb"))
+              (patches (list (search-patch "tidy-CVE-2015-5522+5523.patch")))))
     (build-system gnu-build-system)
     (arguments
      '(#:phases (alist-cons-after
@@ -1173,7 +1175,7 @@ memory interprocess cache.  It is based on Cache::FastMmap.")
     (home-page "http://search.cpan.org/dist/Catalyst-Plugin-StackTrace")
     (synopsis "Stack trace on the Catalyst debug screen")
     (description "This plugin enhances the standard Catalyst debug screen by
-including a stack trace of your appliation up to the point where the error
+including a stack trace of your application up to the point where the error
 occurred.  Each stack frame is displayed along with the package name, line
 number, file name, and code context surrounding the line number.")
     (license (package-license perl))))

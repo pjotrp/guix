@@ -272,6 +272,7 @@ when typing parentheses directly or commenting out code line by line.")
               (uri (string-append
                     "https://github.com/magit/git-modes/archive/"
                     version ".tar.gz"))
+              (file-name (string-append name "-" version ".tar.gz"))
               (sha256
                (base32
                 "1biiss75bswx4alk85k3g9p0a3q3sc9i74h4mnrxc2rsk2iwhws0"))))
@@ -310,7 +311,7 @@ configuration files, such as .gitattributes, .gitignore, and .git/config.")
 (define-public magit
   (package
     (name "magit")
-    (version "1.4.1")
+    (version "1.4.2")
     (source (origin
              (method url-fetch)
              (uri (string-append
@@ -318,7 +319,7 @@ configuration files, such as .gitattributes, .gitignore, and .git/config.")
                    version "/" name "-" version ".tar.gz"))
              (sha256
               (base32
-               "0bbvz6cma5vj6qxx9v2m60zqkjwgwjrdf9kp04iacybvrcm8vcg7"))))
+               "1g3bxvgabiis2y338jziycx4b61vrim4lzmqnzv78094s8azzb52"))))
     (build-system gnu-build-system)
     (native-inputs `(("texinfo" ,texinfo)
                      ("emacs" ,emacs-no-x)))
@@ -410,8 +411,7 @@ operations.")
                                          "/bin/emacs"))
                 (magit    (string-append (assoc-ref %build-inputs "magit")
                                          "/share/emacs/site-lisp"))
-                (commit   (string-append (assoc-ref %build-inputs
-                                                    "magit/git-modes")
+                (commit   (string-append (assoc-ref %build-inputs "git-modes")
                                          "/share/emacs/site-lisp"))
                 (source   (assoc-ref %build-inputs "source"))
                 (lisp-dir (string-append %output "/share/emacs/site-lisp")))
@@ -814,18 +814,28 @@ or XEmacs.")
      (origin
        (method url-fetch)
        (uri (string-append
-             "http://stable.melpa.org/packages/mmm-mode-"
-             version
-             ".tar"))
+             "https://github.com/purcell/mmm-mode/archive/"
+             version ".tar.gz"))
+       (file-name (string-append name "-" version ".tar.gz"))
        (sha256
         (base32
-         "1llkzb6d978ym3zv3yfzwj0w5zzmmj3ksrm5swrx1papxcnqnkb9"))))
-    (build-system emacs-build-system)
+         "10kwslnflbjqm62wkrq420crqzdqalzfflp9pqk1i12zm6dm4mfv"))))
+    (build-system gnu-build-system)
+    (arguments
+     '(#:phases
+       (modify-phases %standard-phases
+         (add-after 'unpack 'autogen
+           (lambda _
+             (zero? (system* "sh" "autogen.sh")))))))
+    (native-inputs
+     `(("autoconf" ,autoconf)
+       ("automake" ,automake)
+       ("emacs" ,emacs-no-x)
+       ("texinfo" ,texinfo)))
     (home-page "https://github.com/purcell/mmm-mode")
-    (synopsis
-     "Allow multiple major modes in an Emacs buffer")
+    (synopsis "Allow multiple major modes in an Emacs buffer")
     (description
-    "MMM Mode is a minor mode that allows multiple major modes to coexist in a
+     "MMM Mode is a minor mode that allows multiple major modes to coexist in a
 single buffer.")
     (license license:gpl3+)))
 

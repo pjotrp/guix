@@ -511,7 +511,7 @@
 
 (test-assertm "gexp->derivation #:references-graphs"
   (mlet* %store-monad
-      ((one (text-file "one" "hello, world"))
+      ((one (text-file "one" (random-text)))
        (two (gexp->derivation "two"
                               #~(symlink #$one #$output:chbouib)))
        (drv (gexp->derivation "ref-graphs"
@@ -536,15 +536,22 @@
                                           (guix build utils))))
        (ok? (built-derivations (list drv)))
        (guile-drv  (package->derivation %bootstrap-guile))
+       (bash       (interned-file (search-bootstrap-binary "bash"
+                                                           (%current-system))
+                                  "bash" #:recursive? #t))
        (g-one   -> (derivation->output-path drv "one"))
        (g-two   -> (derivation->output-path drv "two"))
        (g-guile -> (derivation->output-path drv)))
     (return (and ok?
                  (equal? (call-with-input-file g-one read) (list one))
-                 (equal? (call-with-input-file g-two read)
-                         (list one (derivation->output-path two "chbouib")))
-                 (equal? (call-with-input-file g-guile read)
-                         (list (derivation->output-path guile-drv)))))))
+                 (lset= string=?
+                        (call-with-input-file g-two read)
+                        (list one (derivation->output-path two "chbouib")))
+
+                 ;; Note: %BOOTSTRAP-GUILE depends on the bootstrap Bash.
+                 (lset= string=?
+                        (call-with-input-file g-guile read)
+                        (list (derivation->output-path guile-drv) bash))))))
 
 (test-assertm "gexp->derivation #:allowed-references"
   (mlet %store-monad ((drv (gexp->derivation "allowed-refs"

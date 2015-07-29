@@ -1,6 +1,7 @@
 ;;; GNU Guix --- Functional package management for GNU
 ;;; Copyright © 2014 Ludovic Courtès <ludo@gnu.org>
 ;;; Copyright © 2015 Ricardo Wurmus <rekado@elephly.net>
+;;; Copyright © 2015 Mark H Weaver <mhw@netris.org>
 ;;;
 ;;; This file is part of GNU Guix.
 ;;;
@@ -105,3 +106,43 @@ asynchronous message queues, multiple messaging patterns, message
 filtering (subscriptions), seamless access to multiple transport protocols and
 more.")
     (license license:lgpl3+)))
+
+(define-public libndp
+  (package
+    (name "libndp")
+    (version "1.5")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "http://libndp.org/files/"
+                                  name "-" version ".tar.gz"))
+              (sha256
+               (base32
+                "15f743hjc7yy2sv3hzvfc27s1gny4mh5aww59vn195fff2midwgs"))))
+    (build-system gnu-build-system)
+    (home-page "http://libndp.org/")
+    (synopsis "Library for Neighbor Discovery Protocol")
+    (description
+     "libndp contains a library which provides a wrapper for IPv6 Neighbor
+Discovery Protocol.  It also provides a tool named ndptool for sending and
+receiving NDP messages.")
+    (license license:lgpl2.1+)))
+
+(define-public ethtool
+  (package
+    (name "ethtool")
+    (version "4.0")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "mirror://kernel.org/software/network/"
+                                  name "/" name "-" version ".tar.xz"))
+              (sha256
+               (base32
+                "1zzcwn6pk8qfasalqkxg8vrhacksfa50xsq4xifw7yfjqyn8fj4h"))))
+    (build-system gnu-build-system)
+    (home-page "https://www.kernel.org/pub/software/network/ethtool/")
+    (synopsis "Display or change Ethernet device settings")
+    (description
+     "ethtool can be used to query and change settings such as speed,
+auto-negotiation and checksum offload on many network devices, especially
+Ethernet devices.")
+    (license license:gpl2)))

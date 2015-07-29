@@ -25,6 +25,7 @@
 ;;; Code:
 
 (require 'guix-profiles)
+(require 'cl-lib)
 
 (defcustom guix-emacs-activate-after-operation t
   "Activate Emacs packages after installing.
@@ -69,7 +70,7 @@ Return nil if there are no emacs packages installed in PROFILE."
                                 (guix-emacs-subdirs elisp-pkgs-dir))))
                 (append root-autoloads pkgs-autoloads))
             root-autoloads))
-      (message "Directory '%s' does not exist." dir)
+      (message "Directory '%s' does not exist." elisp-root-dir)
       nil)))
 
 ;;;###autoload

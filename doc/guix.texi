@@ -300,7 +300,8 @@ As @code{root}, run:
 
 @example
 # cd /tmp
-# tar xf guix-binary-@value{VERSION}.@var{system}.tar.xz
+# tar --warning=no-timestamp -xf \
+     guix-binary-@value{VERSION}.@var{system}.tar.xz
 # mv var/guix /var/ && mv gnu /
 @end example
 
@@ -310,6 +311,16 @@ step.)
 
 Do @emph{not} unpack the tarball on a working Guix system since that
 would overwrite its own essential files.
+
+The @code{--warning=no-timestamp} option makes sure GNU@tie{}tar does
+not emit warnings about ``implausibly old time stamps'' (such
+warnings were triggered by GNU@tie{}tar 1.26 and older; recent
+versions are fine.)
+They stem from the fact that all the
+files in the archive have their modification time set to zero (which
+means January 1st, 1970.)  This is done on purpose to make sure the
+archive content is independent of its creation time, thus making it
+reproducible.
 
 @item
 Make @code{root}'s profile available under @file{~/.guix-profile}:
@@ -353,7 +364,8 @@ authorize them:
 @end example
 @end enumerate
 
-And that's it!
+And that's it!  For additional tips and tricks, @pxref{Application
+Setup}.
 
 The @code{guix} package must remain available in @code{root}'s
 profile, or it would become subject to garbage collection---in which
@@ -936,7 +948,7 @@ load fonts and perform X11-client-side rendering.  Guix's
 by default.  Thus, to allow graphical applications installed with Guix
 to display fonts, you will have to install fonts with Guix as well.
 Essential font packages include @code{gs-fonts}, @code{font-dejavu}, and
-@code{font-gnu-freefont}.
+@code{font-gnu-freefont-ttf}.
 
 @c TODO What else?
 
@@ -4184,6 +4196,10 @@ The available options are:
 
 @table @option
 
+@item --substitute-urls=@var{urls}
+Use substitute information from @var{urls}.
+@xref{client-substitute-urls, the same option for @code{guix build}}.
+
 @item --map-file=@var{file}
 Write to @var{file} a graphical map of disk usage as a PNG file.
 
@@ -4432,7 +4448,7 @@ System Distribution, or GuixSD.
 The distribution provides core GNU packages such as GNU libc, GCC, and
 Binutils, as well as many GNU and non-GNU applications.  The complete
 list of available packages can be browsed
-@url{http://www.gnu.org/software/guix/package-list.html,on-line} or by
+@url{http://www.gnu.org/software/guix/packages,on-line} or by
 running @command{guix package} (@pxref{Invoking guix package}):
 
 @example
@@ -4455,7 +4471,7 @@ Intel/AMD @code{x86_64} architecture, Linux-Libre kernel;
 Intel 32-bit architecture (IA32), Linux-Libre kernel;
 
 @item armhf-linux
-ARMv7-A architecture with hard float, Thumb-2 and VFP3D16 coprocessor,
+ARMv7-A architecture with hard float, Thumb-2 and NEON,
 using the EABI hard-float ABI, and Linux-Libre kernel.
 
 @item mips64el-linux
@@ -4524,8 +4540,9 @@ requires familiarity with GNU/Linux (see the following subsections to
 get a feel of what that means.)
 
 @item
-The system does not yet provide GNOME and KDE; it provides Xfce, though,
-if graphical desktop environments are your thing.
+The system does not yet provide full GNOME and KDE desktops.  Xfce and
+Enlightenment are available though, if graphical desktop environments
+are your thing, as well as a number of X11 window managers.
 
 @item
 Support for the Logical Volume Manager (LVM) is missing.
@@ -4535,7 +4552,7 @@ Few system services are currently supported out-of-the-box
 (@pxref{Services}).
 
 @item
-On the order of 1,900 packages are available, which means that you may
+More than 2,000 packages are available, but you may
 occasionally find that a useful package is missing.
 @end itemize
 
@@ -4671,9 +4688,14 @@ This will copy all the necessary files, and install GRUB on
 more information, @pxref{Invoking guix system}.  This command may trigger
 downloads or builds of missing packages, which can take some time.
 
-Once that command has completed---and hopefully succeeded!---you can
-run @command{reboot} and boot into the new system.  Cross fingers, and
-join us on @code{#guix} on the Freenode IRC network or on
+Once that command has completed---and hopefully succeeded!---you can run
+@command{reboot} and boot into the new system.  The @code{root} password
+in the new system is initially empty; other users' passwords need to be
+initialized by running the @command{passwd} command as @code{root},
+unless your configuration specifies otherwise
+(@pxref{user-account-password, user account passwords}).
+
+Join us on @code{#guix} on the Freenode IRC network or on
 @file{guix-devel@@gnu.org} to share your experience---good or not so
 good.
 
@@ -5216,6 +5238,7 @@ This Boolean value indicates whether the account is a ``system''
 account.  System accounts are sometimes treated specially; for instance,
 graphical login managers do not list them.
 
+@anchor{user-account-password}
 @item @code{password} (default: @code{#f})
 You would normally leave this field to @code{#f}, initialize user
 passwords as @code{root} with the @command{passwd} command, and then let
@@ -5911,8 +5934,8 @@ passed to @command{lircd}.
 @cindex setuid programs
 Some programs need to run with ``root'' privileges, even when they are
 launched by unprivileged users.  A notorious example is the
-@command{passwd} programs, which can users can run to change their
-password, and which requires write access to the @file{/etc/passwd} and
+@command{passwd} program, which users can run to change their
+password, and which needs to access the @file{/etc/passwd} and
 @file{/etc/shadow} files---something normally restricted to root, for
 obvious security reasons.  To address that, these executables are
 @dfn{setuid-root}, meaning that they always run with root privileges

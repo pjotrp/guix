@@ -20,12 +20,13 @@
 
 (define-module (gnu packages algebra)
   #:use-module (gnu packages)
+  #:use-module (gnu packages compression)
   #:use-module (gnu packages multiprecision)
   #:use-module (gnu packages mpi)
   #:use-module (gnu packages perl)
   #:use-module (gnu packages readline)
   #:use-module (gnu packages flex)
-  #:use-module (guix licenses)
+  #:use-module ((guix licenses) #:prefix license:)
   #:use-module (guix packages)
   #:use-module (guix download)
   #:use-module (guix build-system gnu)
@@ -46,9 +47,10 @@
              (base32
               "0grw66b255r574lvll1bqccm5myj2m8ajzsjaygcyq9zjnnbnhhy"))))
    (build-system gnu-build-system)
-   (inputs `(("gmp" ,gmp)
-             ("mpfr" ,mpfr)
-             ("mpc"  ,mpc)))
+   (propagated-inputs
+     `(("gmp" ,gmp)
+       ("mpfr" ,mpfr)
+       ("mpc"  ,mpc))) ; Header files are included by mpfrcx.h.
    (synopsis "Arithmetic of polynomials over arbitrary precision numbers")
    (description
     "Mpfrcx is a library for the arithmetic of univariate polynomials over
@@ -57,8 +59,36 @@ on the rounding.  For the time being, only the few functions needed to
 implement the floating point approach to complex multiplication are
 implemented.  On the other hand, these comprise asymptotically fast
 multiplication routines such as Toom–Cook and the FFT.")
-   (license lgpl2.1+)
+   (license license:lgpl2.1+)
    (home-page "http://mpfrcx.multiprecision.org/")))
+
+(define-public cm
+  (package
+   (name "cm")
+   (version "0.2.1")
+   (source (origin
+            (method url-fetch)
+            (uri (string-append
+                  "http://www.multiprecision.org/cm/download/cm-"
+                  version ".tar.gz"))
+            (sha256
+             (base32
+              "1r5dx5qy0ka2sq26n9jll9iy4sjqg0jp5r3jnbjhpgxvmj8jbhq8"))))
+   (build-system gnu-build-system)
+   (propagated-inputs
+     `(("mpfrcx" ,mpfrcx)
+       ("zlib" ,zlib))) ; Header files included from cm_common.h.
+   (inputs
+     `(("pari-gp"  ,pari-gp)))
+   (synopsis "CM constructions for elliptic curves")
+   (description
+    "The CM software implements the construction of ring class fields of
+imaginary quadratic number fields and of elliptic curves with complex
+multiplication via floating point approximations.  It consists of libraries
+that can be called from within a C program and of executable command
+line applications.")
+   (license license:gpl2+)
+   (home-page "http://cm.multiprecision.org/")))
 
 (define-public fplll
   (package
@@ -78,7 +108,7 @@ multiplication routines such as Toom–Cook and the FFT.")
    (description
     "fplll LLL-reduces euclidean lattices.  Since version 3, it can also
 solve the shortest vector problem.")
-   (license lgpl2.1+)
+   (license license:lgpl2.1+)
    (home-page "http://perso.ens-lyon.fr/damien.stehle/fplll/")))
 
 (define-public pari-gp
@@ -119,20 +149,21 @@ functions to compute with mathematical entities such as matrices,
 polynomials, power series, algebraic numbers, etc., and a lot of
 transcendental functions.
 PARI is also available as a C library to allow for faster computations.")
-   (license gpl2+)
+   (license license:gpl2+)
    (home-page "http://pari.math.u-bordeaux.fr/")))
 
 (define-public gp2c
   (package
    (name "gp2c")
-   (version "0.0.9pl2")
+   (version "0.0.9pl3")
    (source (origin
             (method url-fetch)
             (uri (string-append
                   "http://pari.math.u-bordeaux.fr/pub/pari/GP2C/gp2c-"
                   version ".tar.gz"))
-            (sha256 (base32
-                     "02h35fwz1caicii7fj8zb9ky4hcrd8rqmzkyvhbls0r05yg5bwwb"))))
+            (sha256
+              (base32
+                "0wbghihwlcx3w4j1la3bjf5gcrkk6lp9syw6iimqndq1f73ijlq3"))))
    (build-system gnu-build-system)
    (native-inputs `(("perl" ,perl)))
    (inputs `(("pari-gp" ,pari-gp)))
@@ -152,7 +183,7 @@ transcendental functions.
 PARI is also available as a C library to allow for faster computations.
 
 GP2C, the GP to C compiler, translates GP scripts to PARI programs.")
-   (license gpl2)
+   (license license:gpl2)
    (home-page "http://pari.math.u-bordeaux.fr/")))
 
 (define-public flint
@@ -203,21 +234,22 @@ Operations that can be performed include conversions, arithmetic,
 GCDs, factoring, solving linear systems, and evaluating special
 functions.  In addition, FLINT provides various low-level routines for
 fast arithmetic.")
-   (license gpl2+)
+   (license license:gpl2+)
    (home-page "http://flintlib.org/")))
 
 (define-public arb
   (package
    (name "arb")
-   (version "2.3.0")
+   (version "2.7.0")
    (source (origin
             (method url-fetch)
             (uri (string-append
                   "https://github.com/fredrik-johansson/arb/archive/"
                   version ".tar.gz"))
             (file-name (string-append name "-" version ".tar.gz"))
-            (sha256 (base32
-                     "0yvabxyyj1g0d8b5mfgzrxq6qya8cmq97vz60ss6aajzm3nwrabk"))))
+            (sha256
+              (base32
+                "1rwkffs57v8mry63rq8l2dyw69zfs9rg5fpbfllqp3nkjnkp1fly"))))
    (build-system gnu-build-system)
    (propagated-inputs
     `(("flint" ,flint))) ; flint.h is included by arf.h
@@ -248,7 +280,7 @@ fast arithmetic.")
 arithmetic.  It supports efficient high-precision computation with
 polynomials, power series, matrices and special functions over the
 real and complex numbers, with automatic, rigorous error control.")
-   (license gpl2+)
+   (license license:gpl2+)
    (home-page "http://fredrikj.net/arb/")))
 
 (define-public bc
@@ -289,7 +321,7 @@ real and complex numbers, with automatic, rigorous error control.")
 an interactive environment for evaluating mathematical statements.  Its
 syntax is similar to that of C, so basic usage is familiar.  It also includes
 \"dc\", a reverse-polish calculator.")
-    (license gpl2+)))
+    (license license:gpl2+)))
 
 (define-public fftw
   (package
@@ -323,7 +355,7 @@ syntax is similar to that of C, so basic usage is familiar.  It also includes
 transform (DFT) in one or more dimensions, of arbitrary input size, and of
 both real and complex data (as well as of even/odd data---i.e. the discrete
 cosine/ sine transforms or DCT/DST).")
-    (license gpl2+)))
+    (license license:gpl2+)))
 
 (define-public fftwf
   (package (inherit fftw)
@@ -402,4 +434,4 @@ features, and more.")
 
     ;; Most of the code is MPLv2, with a few files under LGPLv2.1+ or BSD-3.
     ;; See 'COPYING.README' for details.
-    (license mpl2.0)))
+    (license license:mpl2.0)))
