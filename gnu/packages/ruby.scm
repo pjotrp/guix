@@ -1,8 +1,8 @@
 ;;; GNU Guix --- Functional package management for GNU
-;;; Copyright © 2014 Pjotr Prins <pjotr.guix@thebird.nl>
+;;; Copyright © 2014, 2015 Pjotr Prins <pjotr.guix@thebird.nl>
 ;;; Copyright © 2014 Ludovic Courtès <ludo@gnu.org>
 ;;; Copyright © 2014, 2015 Mark H Weaver <mhw@netris.org>
-;;; Copyright © 2014 David Thompson <davet@gnu.org>
+;;; Copyright © 2014, 2015 David Thompson <davet@gnu.org>
 ;;;
 ;;; This file is part of GNU Guix.
 ;;;
@@ -227,9 +227,64 @@ an extensible architecture with a swappable backend.")
     (home-page "http://github.com/svenfuchs/i18n")
     (license license:expat)))
 
+(define-public ruby-multi_test
+  (package
+    (name "ruby-multi_test")
+    (version "0.1.2")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append
+                    "https://rubygems.org/downloads/multi_test-" version ".gem"))
+              (sha256
+               (base32
+                "0ri90q0frfmigkirqv5ihyrj59xm8pq5zcmf156cbdv4r4l2jicv"))))
+    (build-system rubygem-build-system)
+    (synopsis "Cucumber wrapper for Ruby testing requires")
+    (description "None")
+    (home-page "http://cucumber.io/")
+    (license license:expat)))
+
+
 (define-public ruby-log4r
   (package
     (name "ruby-log4r")
+    (version "1.1.10")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append
+                    "https://rubygems.org/downloads/log4r-" version ".gem"))
+              (sha256
+               (base32
+                "0ri90q0frfmigkirqv5ihyrj59xm8pq5zcmf156cbdv4r4l2jicv"))))
+    (build-system rubygem-build-system)
+    (synopsis "A flexible logging library for Ruby")
+    (description "Ruby Log4r features a hierarchical logging system of
+any number of levels, custom level names, logger inheritance, multiple
+output destinations per log event, execution tracing, custom
+formatting, thread safetyness, XML and YAML configuration, and more.")
+    (home-page "http://log4r.rubyforge.org/")
+    (license license:expat)))
+
+(define-public ruby-multi_json
+  (package
+    (name "ruby-multi_json")
+    (version "1.11.2")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append
+                    "https://rubygems.org/downloads/multi_json-" version ".gem"))
+              (sha256
+               (base32
+                "0ri90q0frfmigkirqv5ihyrj59xm8pq5zcmf156cbdv4r4l2jicv"))))
+    (build-system rubygem-build-system)
+    (synopsis "NA")
+    (description "NA")
+    (home-page "http://unknown.rubyforge.org/")
+    (license license:expat)))
+
+(define-public ruby-cucumber-core
+  (package
+    (name "ruby-cucumber-core")
     (version "1.1.10")
     (source (origin
               (method url-fetch)
@@ -560,7 +615,7 @@ using Net::HTTP, supporting reconnection and retry according to RFC 2616.")
      '(#:tests? #f  ;; test fails because nokogiri can only test with
                     ;; an installed extension (now part of install
                     ;; phase
-       #:gem-flags (list "--use-system-libraries"
+       #:gem-flags (list "--" "--use-system-libraries"
                      (string-append "--with-xml2-include="
                        (assoc-ref %build-inputs "libxml2")
                        "/include/libxml2" ))
@@ -585,7 +640,45 @@ using Net::HTTP, supporting reconnection and retry according to RFC 2616.")
 and also has correctly implemented CSS3 selector support as well as
 XPath 1.0 support.")
     (home-page "http://www.nokogiri.org/")
-    (license license:x11)))
+    (license license:expat)))
+
+(define-public ruby-gherkin
+  (package
+    (name "ruby-gherkin")
+    (version "2.12.2")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append
+                    "https://github.com/cucumber/gherkin/archive/v"
+                    version ".tar.gz"))
+              (file-name (string-append name "-" version ".tar.gz"))
+              (sha256
+               (base32
+                "1f95jkyy742f2x6bdzs020v9llyg3nj5kj0nr0jsjz9cwkm3k5qk"))))
+    (build-system ruby-build-system)
+    (arguments
+     '(#:tests? #f
+                #:gem-flags (list "--" )
+                     ; "--use-system-libraries"
+                     ; (string-append "--with-xml2-include="
+                     ;   (assoc-ref %build-inputs "libxml2")
+                     ;   "/include/libxml2" ))
+       #:phases
+         (modify-phases %standard-phases
+           (replace 'build
+                    (lambda _
+                      ;; calling rake gem 2x begets a gem. The first time
+                      ;; only the build-dir is created
+                      (zero? (begin
+                               ; (system* "rake" "gem")
+                               (system* "rake" "gem"))))))))
+    (native-inputs
+     `(("ruby-multi_json", ruby-multi_json)))
+    (synopsis "A fast lexer and parser for the Gherkin language based on Ragel")
+    (description "Gherkin is the language lexer/parser that is part of
+the Cucumber project")
+    (home-page "https://github.com/cucumber/gherkin")
+    (license license:expat)))
 
 (define-public ruby-minitest
   (package
