@@ -539,7 +539,7 @@ using Net::HTTP, supporting reconnection and retry according to RFC 2616.")
      '(#:tests? #f  ;; test fails because nokogiri can only test with
                     ;; an installed extension (now part of install
                     ;; phase
-       #:gem-flags (list "--use-system-libraries"
+       #:gem-flags (list "--" "--use-system-libraries"
                      (string-append "--with-xml2-include="
                        (assoc-ref %build-inputs "libxml2")
                        "/include/libxml2" ))
@@ -564,7 +564,49 @@ using Net::HTTP, supporting reconnection and retry according to RFC 2616.")
 and also has correctly implemented CSS3 selector support as well as
 XPath 1.0 support.")
     (home-page "http://www.nokogiri.org/")
-    (license license:x11)))
+    (license license:expat)))
+
+(define-public ruby-gherkin
+  (package
+    (name "ruby-gherkin")
+    (version "2.12.2")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append
+                    "https://github.com/cucumber/gherkin/archive/v"
+                    version ".tar.gz"))
+              (file-name (string-append name "-" version ".tar.gz"))
+              (sha256
+               (base32
+                "1f95jkyy742f2x6bdzs020v9llyg3nj5kj0nr0jsjz9cwkm3k5qk"))))
+    (build-system ruby-build-system)
+    (arguments
+     '(#:tests? #f
+                #:gem-flags (list "--" )
+                     ; "--use-system-libraries"
+                     ; (string-append "--with-xml2-include="
+                     ;   (assoc-ref %build-inputs "libxml2")
+                     ;   "/include/libxml2" ))
+       #:phases
+         (modify-phases %standard-phases
+           (replace 'build
+                    (lambda _
+                      ;; calling rake gem 2x begets a gem. The first time
+                      ;; only the build-dir is created
+                      (zero? (begin
+                               (system* "rake" "gem")
+                               (system* "rake" "gem"))))))))
+    (native-inputs
+     `(("ruby-hoe" ,ruby-hoe)
+       ("ruby-rake-compiler", ruby-rake-compiler)
+       ("ruby-cucumber", ruby-cucumber)))
+    (inputs
+     `(("ruby-nokogiri" ,ruby-nokogiri)))
+    (synopsis "A fast lexer and parser for the Gherkin language based on Ragel")
+    (description "Gherkin is the language lexer/parser that is part of
+the Cucumber project")
+    (home-page "https://github.com/cucumber/gherkin")
+    (license license:expat)))
 
 (define-public ruby-minitest
   (package
