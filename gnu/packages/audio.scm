@@ -2,6 +2,8 @@
 ;;; Copyright © 2015 Ricardo Wurmus <rekado@elephly.net>
 ;;; Copyright © 2015 Taylan Ulrich Bayırlı/Kammer <taylanbayirli@gmail.com>
 ;;; Copyright © 2015 Andreas Enge <andreas@enge.fr>
+;;; Copyright © 2015 Alex Kost <alezost@gmail.com>
+;;; Copyright © 2015 Mark H Weaver <mhw@netris.org>
 ;;;
 ;;; This file is part of GNU Guix.
 ;;;
@@ -45,6 +47,7 @@
   #:use-module (gnu packages gtk)
   #:use-module (gnu packages gnome)
   #:use-module (gnu packages gperf)
+  #:use-module (gnu packages image)
   #:use-module (gnu packages ncurses)
   #:use-module (gnu packages qt)
   #:use-module (gnu packages linux)
@@ -447,7 +450,7 @@ ALSA PCM devices.")
     (description
      "FluidSynth is a real-time software synthesizer based on the SoundFont 2
 specifications.  FluidSynth reads and handles MIDI events from the MIDI input
-device.  It is the software analogue of a MIDI synthesizer. FluidSynth can
+device.  It is the software analogue of a MIDI synthesizer.  FluidSynth can
 also play midifiles using a Soundfont.")
     (license license:gpl2+)))
 
@@ -667,11 +670,12 @@ especially for creating reverb effects.  It supports impulse responses with 1,
     (build-system gnu-build-system)
     (inputs
      `(("alsa-lib" ,alsa-lib)
-       ("bdb" ,bdb)
        ("readline" ,readline)))
     ;; uuid.h is included in the JACK type headers
+    ;; db.h is included in the libjack metadata headers
     (propagated-inputs
-     `(("libuuid" ,util-linux)))
+     `(("libuuid" ,util-linux)
+       ("bdb" ,bdb)))
     (native-inputs
      `(("pkg-config" ,pkg-config)))
     (home-page "http://jackaudio.org/")
@@ -687,6 +691,9 @@ synchronous execution of all clients, and low latency operation.")
     ;; licensed under the LGPL in order to allow for proprietary usage.
     (license (list license:gpl2+ license:lgpl2.1+))))
 
+;; Packages depending on JACK should always prefer jack-1.  Both jack-1 and
+;; jack-2 implement the same API.  JACK2 is provided primarily as a client
+;; program for users who might benefit from the D-BUS features.
 (define-public jack-2
   (package (inherit jack-1)
     (name "jack2")
@@ -1372,17 +1379,23 @@ analysis plugins or audio feature extraction plugins.")
     (build-system gnu-build-system)
     (native-inputs `(("automake" ,automake)))
     (arguments
-     `(#:phases
-       (alist-cons-after
-        'unpack 'fix-ar-lib-path
-        (lambda* (#:key inputs #:allow-other-keys)
-          ;; Originally a symlink to '/usr/local/share/automake-1.12/ar-lib'.
-          (delete-file "ar-lib")
-          (symlink
-           (string-append (assoc-ref inputs "automake") "/share/automake-"
-                          ,(package-version automake) "/ar-lib")
-           "ar-lib"))
-        %standard-phases)))
+     `(#:configure-flags
+       ;; Disable the use of SSE unless on x86_64.
+       ,(if (not (string-prefix? "x86_64" (or (%current-target-system)
+                                              (%current-system))))
+            ''("--disable-sse")
+            ''())
+       #:phases
+       (modify-phases %standard-phases
+         (add-after
+          'unpack 'fix-ar-lib-path
+          (lambda* (#:key inputs #:allow-other-keys)
+            ;; Originally a symlink to '/usr/local/share/automake-1.12/ar-lib'.
+            (delete-file "ar-lib")
+            (symlink
+             (string-append (assoc-ref inputs "automake") "/share/automake-"
+                            ,(package-version automake) "/ar-lib")
+             "ar-lib"))))))
     (home-page "http://sbsms.sourceforge.net/")
     (synopsis "Library for time stretching and pitch scaling of audio")
     (description
@@ -1518,6 +1531,47 @@ application developers writing sound processing tools that require tempo/pitch
 control functionality, or just for playing around with the sound effects.")
     (license license:lgpl2.1+)))
 
+(define-public sox
+  (package
+    (name "sox")
+    (version "14.4.2")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "mirror://sourceforge/sox/sox-"
+                                  version ".tar.bz2"))
+              (sha256
+               (base32
+                "170lx90r1nlnb2j6lg00524iwvqy72p48vii4xc5prrh8dnrb9l1"))))
+    (build-system gnu-build-system)
+    (arguments
+     '(#:configure-flags
+       ;; The upstream asks to identify the distribution to diagnose SoX
+       ;; bug reports.
+       '("--with-distro=Guix System Distribution")))
+    (native-inputs
+     `(("pkg-config" ,pkg-config)))
+    (inputs
+     `(("alsa-lib" ,alsa-lib)
+       ("ao" ,ao)
+       ("flac" ,flac)
+       ("lame" ,lame)
+       ("libid3tag" ,libid3tag)
+       ("libltdl" ,libltdl)
+       ("libmad" ,libmad)
+       ("libpng" ,libpng)
+       ("libvorbis" ,libvorbis)
+       ("pulseaudio" ,pulseaudio)))
+    (home-page "http://sox.sourceforge.net")
+    (synopsis "Sound processing utility")
+    (description
+     "SoX (Sound eXchange) is a command line utility that can convert
+various formats of computer audio files to other formats.  It can also
+apply various effects to these sound files, and, as an added bonus, SoX
+can play and record audio files.")
+    ;; sox.c is distributed under GPL, while the files that make up
+    ;; libsox are licensed under LGPL.
+    (license (list license:gpl2+ license:lgpl2.1+))))
+
 (define-public soxr
   (package
     (name "soxr")
@@ -1582,7 +1636,7 @@ portions of LAME.")
     (inputs
      ;; TODO: Add ASIHPI.
      `(("alsa-lib" ,alsa-lib)
-       ("jack" ,jack-2)))
+       ("jack" ,jack-1)))
     (native-inputs
      `(("autoconf" ,autoconf)
        ("automake" ,automake)

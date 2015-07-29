@@ -104,7 +104,7 @@ as well as the classic centralized workflow.")
     `(,name
       ,@(map (match-lambda
                ((label (? package? _) . _)
-                (string-append name "/" label)))
+                label))
              (package-transitive-propagated-inputs package)))))
 
 (define (package-propagated-input-refs inputs packages)
@@ -112,8 +112,9 @@ as well as the classic centralized workflow.")
 PACKAGES and their propagated inputs."
   (map (lambda (l)
          `(assoc-ref ,inputs ,l))
-       (append-map package-transitive-propagated-labels*
-                   packages)))
+       (delete-duplicates                  ;XXX: efficiency
+        (append-map package-transitive-propagated-labels*
+                    packages))))
 
 (define-public git
   ;; Keep in sync with 'git-manpages'!
@@ -236,13 +237,12 @@ PACKAGES and their propagated inputs."
               (wrap-program git-se*
                 `("PERL5LIB" ":" prefix
                   ,(map (lambda (o) (string-append o "/lib/perl5/site_perl"))
-                        (delete-duplicates
-                         (list
-                          ,@(package-propagated-input-refs
-                             'inputs
-                             `(,perl-authen-sasl
-                               ,perl-net-smtp-ssl
-                               ,perl-io-socket-ssl)))))))
+                        (list
+                         ,@(package-propagated-input-refs
+                            'inputs
+                            (list perl-authen-sasl
+                                  perl-net-smtp-ssl
+                                  perl-io-socket-ssl))))))
 
               ;; Tell 'git-submodule' where Perl is.
               (wrap-program git-sm
@@ -510,7 +510,7 @@ control to Git repositories.")
     (version "3.2.4")
     (source (origin
              (method url-fetch)
-             (uri (string-append "http://mercurial.selenic.com/release/mercurial-"
+             (uri (string-append "https://mercurial.selenic.com/release/mercurial-"
                                  version ".tar.gz"))
              (sha256
               (base32
@@ -791,7 +791,7 @@ code control system SCCS.  This allows old code still under that system to be
 accessed and migrated on modern systems.")
     (license gpl3+)))
 
-;; This package can unfortunately work only in -TEST mode, since Aegis 
+;; This package can unfortunately work only in -TEST mode, since Aegis
 ;; requires that it is installed setuid root.
 (define-public aegis
   (package
@@ -799,7 +799,7 @@ accessed and migrated on modern systems.")
     (version "4.24")
     (source (origin
               (method url-fetch)
-              (uri (string-append "mirror://sourceforge/aegis/aegis-" 
+              (uri (string-append "mirror://sourceforge/aegis/aegis-"
                                   version ".tar.gz"))
               (sha256
                (base32
@@ -822,17 +822,17 @@ accessed and migrated on modern systems.")
        ("groff" ,groff)
        ("perl" ,perl)
        ;; Various tests require the following:
-       ("cvs" ,cvs) 
+       ("cvs" ,cvs)
        ("flex" ,flex)
        ("cook" ,cook)
        ("subversion" ,subversion)
        ("rcs" ,rcs)
        ("ed" ,ed)))
     (arguments
-     `(#:configure-flags (list "--with-no-aegis-configured" 
+     `(#:configure-flags (list "--with-no-aegis-configured"
                                "--sharedstatedir=/var/com/aegis")
        #:parallel-build? #f ; There are some nasty racy rules in the Makefile.
-       #:phases 
+       #:phases
         (alist-cons-before
          'configure 'pre-conf
          (lambda _

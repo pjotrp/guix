@@ -1,5 +1,6 @@
 ;;; GNU Guix --- Functional package management for GNU
 ;;; Copyright © 2015 David Thompson <davet@gnu.org>
+;;; Copyright © 2015 Ludovic Courtès <ludo@gnu.org>
 ;;;
 ;;; This file is part of GNU Guix.
 ;;;
@@ -26,6 +27,7 @@
   #:use-module (rnrs bytevectors)
   #:use-module (srfi srfi-1)
   #:use-module (srfi srfi-2)
+  #:use-module (srfi srfi-9 gnu)
   #:use-module (srfi srfi-26)
   #:use-module (srfi srfi-37)
   #:use-module (web http)
@@ -143,7 +145,7 @@ Publish ~a over HTTP.\n") %store-directory)
   "Generate a narinfo key/value string for STORE-PATH using the details in
 PATH-INFO.  The narinfo is signed with KEY."
   (let* ((url        (string-append "nar/" (basename store-path)))
-         (hash       (bytevector->base32-string
+         (hash       (bytevector->nix-base32-string
                       (path-info-hash path-info)))
          (size       (path-info-nar-size path-info))
          (references (string-join
@@ -206,8 +208,10 @@ References: ~a~%"
     (if (file-exists? store-path)
         (values '((content-type . (application/x-nix-archive
                                    (charset . "ISO-8859-1"))))
-                (lambda (port)
-                  (write-file store-path port)))
+                ;; XXX: We're not returning the actual contents, deferring
+                ;; instead to 'http-write'.  This is a hack to work around
+                ;; <http://bugs.gnu.org/21093>.
+                store-path)
         (not-found request))))
 
 (define extract-narinfo-hash
@@ -226,6 +230,54 @@ is invalid."
   "Split the URI path of REQUEST into a list of component strings.  For
 example: \"/foo/bar\" yields '(\"foo\" \"bar\")."
   (split-and-decode-uri-path (uri-path (request-uri request))))
+
+
+;;;
+;;; Server.
+;;;
+
+(define %http-write
+  (@@ (web server http) http-write))
+
+(define (sans-content-length response)
+  "Return RESPONSE without its 'content-length' header."
+  (set-field response (response-headers)
+             (alist-delete 'content-length
+                           (response-headers response)
+                           eq?)))
+
+(define (http-write server client response body)
+  "Write RESPONSE and BODY to CLIENT, possibly in a separate thread to avoid
+blocking."
+  (match (response-content-type response)
+    (('application/x-nix-archive . _)
+     ;; Sending the the whole archive can take time so do it in a separate
+     ;; thread so that the main thread can keep working in the meantime.
+     (call-with-new-thread
+      (lambda ()
+        (let* ((response (write-response (sans-content-length response)
+                                         client))
+               (port     (response-port response)))
+          ;; XXX: Given our ugly workaround for <http://bugs.gnu.org/21093> in
+          ;; 'render-nar', BODY here is just the file name of the store item.
+          ;; We call 'write-file' from here because we know that's the only
+          ;; way to avoid building the whole nar in memory, which could
+          ;; quickly become a real problem.  As a bonus, we even do
+          ;; sendfile(2) directly from the store files to the socket.
+          (write-file (utf8->string body) port)
+          (close-port port)
+          (values)))))
+    (_
+     ;; Handle other responses sequentially.
+     (%http-write server client response body))))
+
+(define-server-impl concurrent-http-server
+  ;; A variant of Guile's built-in HTTP server that offloads possibly long
+  ;; responses to a different thread.
+  (@@ (web server http) http-open)
+  (@@ (web server http) http-read)
+  http-write
+  (@@ (web server http) http-close))
 
 (define (make-request-handler store)
   (lambda (request body)
@@ -248,7 +300,7 @@ example: \"/foo/bar\" yields '(\"foo\" \"bar\")."
 
 (define (run-publish-server socket store)
   (run-server (make-request-handler store)
-              'http
+              concurrent-http-server
               `(#:socket ,socket)))
 
 (define (open-server-socket address)
@@ -281,7 +333,7 @@ example: \"/foo/bar\" yields '(\"foo\" \"bar\")."
                                 (lambda (opt name arg result)
                                   (leave (_ "~A: unrecognized option~%") name))
                                 (lambda (arg result)
-                                  (leave (_ "~A: extraneuous argument~%") arg))
+                                  (leave (_ "~A: extraneous argument~%") arg))
                                 %default-options))
            (user    (assoc-ref opts 'user))
            (port    (assoc-ref opts 'port))

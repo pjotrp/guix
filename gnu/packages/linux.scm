@@ -210,7 +210,7 @@ for SYSTEM, or #f if there is no configuration for SYSTEM."
      #f)))
 
 (define-public linux-libre
-  (let* ((version "4.1.2")
+  (let* ((version "4.1.3")
          (build-phase
           '(lambda* (#:key system inputs #:allow-other-keys #:rest args)
              ;; Apply the neat patch.
@@ -283,7 +283,7 @@ for SYSTEM, or #f if there is no configuration for SYSTEM."
              (uri (linux-libre-urls version))
              (sha256
               (base32
-               "0clgjpcw1xzqa7jpm6k5fafg3wnc28mzyar3xgr4vbm6zb61fl7k"))))
+               "05v7qlhacs2lr5jr6wn9visn011n1a1335lgjn3ii214saglff8c"))))
     (build-system gnu-build-system)
     (native-inputs `(("perl" ,perl)
                      ("bc" ,bc)
@@ -313,7 +313,18 @@ It has been modified to remove all non-free binary blobs.")
     (license gpl2)
     (home-page "http://www.gnu.org/software/linux-libre/"))))
 
+(define-public linux-libre-4.0
+  (package
+    (inherit linux-libre)
+    (version "4.0.9")
+    (source (origin
+              (method url-fetch)
+              (uri (linux-libre-urls version))
+              (sha256
+               (base32
+                "1xk57pk5skj6qjmzs5c5gs8nkfjb8dbyqqz7fqk0kf68svqiwrwq"))))))
 
+
 ;;;
 ;;; Pluggable authentication modules (PAM).
 ;;;
@@ -356,7 +367,7 @@ It has been modified to remove all non-free binary blobs.")
      "A *Free* project to implement OSF's RFC 86.0.
 Pluggable authentication modules are small shared object files that can
 be used through the PAM API to perform tasks, like authenticating a user
-at login.  Local and dynamic reconfiguration are its key features")
+at login.  Local and dynamic reconfiguration are its key features.")
     (license bsd-3)))
 
 
@@ -417,17 +428,26 @@ providing the system administrator with some help in common tasks.")
                                (string-append "--with-bashcompletiondir="
                                               (assoc-ref %outputs "out")
                                               "/etc/bash_completion.d"))
-       #:phases (alist-cons-before
-                 'check 'pre-check
-                 (lambda* (#:key inputs outputs #:allow-other-keys)
-                   (let ((out (assoc-ref outputs "out"))
-                         (net (assoc-ref inputs "net-base")))
-                     ;; Change the test to refer to the right file.
-                     (substitute* "tests/ts/misc/mcookie"
-                       (("/etc/services")
-                        (string-append net "/etc/services")))
-                     #t))
-                 %standard-phases)))
+       #:phases (modify-phases %standard-phases
+                  (add-before
+                   'build 'set-umount-file-name
+                   (lambda* (#:key outputs #:allow-other-keys)
+                     ;; Tell 'eject' the right file name of 'umount'.
+                     (let ((out (assoc-ref outputs "out")))
+                       (substitute* "sys-utils/eject.c"
+                         (("\"/bin/umount\"")
+                          (string-append "\"" out "/bin/umount\"")))
+                       #t)))
+                  (add-before
+                   'check 'pre-check
+                   (lambda* (#:key inputs outputs #:allow-other-keys)
+                     (let ((out (assoc-ref outputs "out"))
+                           (net (assoc-ref inputs "net-base")))
+                       ;; Change the test to refer to the right file.
+                       (substitute* "tests/ts/misc/mcookie"
+                         (("/etc/services")
+                          (string-append net "/etc/services")))
+                       #t))))))
     (inputs `(("zlib" ,zlib)
               ("ncurses" ,ncurses)))
     (native-inputs
@@ -538,14 +558,16 @@ slabtop, and skill.")
 (define-public e2fsprogs
   (package
     (name "e2fsprogs")
-    (version "1.42.12")
+    (version "1.42.13")
     (source (origin
              (method url-fetch)
-             (uri (string-append "mirror://sourceforge/e2fsprogs/e2fsprogs-"
-                                 version ".tar.gz"))
+             (uri (string-append
+                   "mirror://kernel.org/linux/kernel/people/tytso/"
+                   name "/v" version "/"
+                   name "-" version ".tar.xz"))
              (sha256
               (base32
-               "0v0qcfyls0dlrjy8gx9m3s2wbkp5z3lbsr5hb7x8kp8f3bclcy71"))
+               "1ix0b83zgw5n0p2grh2961c6796m92yr2jqc2sbr23x3lfsp8r71"))
              (modules '((guix build utils)))
              (snippet
               '(substitute* "MCONFIG.in"
@@ -654,6 +676,26 @@ slabtop, and skill.")
 from the e2fsprogs package.  It is meant to be used in initrds.")
     (home-page (package-home-page e2fsprogs))
     (license (package-license e2fsprogs))))
+
+(define-public extundelete
+  (package
+    (name "extundelete")
+    (version "0.2.4")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "mirror://sourceforge/extundelete/"
+                                  version "/extundelete-" version ".tar.bz2"))
+              (sha256
+               (base32
+                "1x0r7ylxlp9lbj3d7sqf6j2a222dwy2nfpff05jd6mkh4ihxvyd1"))))
+    (build-system gnu-build-system)
+    (inputs `(("e2fsprogs" ,e2fsprogs)))
+    (home-page "http://extundelete.sourceforge.net/")
+    (synopsis "Recover deleted files from ext2/3/4 partitions")
+    (description
+     "Extundelete is a set of tools that can recover deleted files from an
+ext3 or ext4 partition.")
+    (license gpl2)))
 
 (define-public zerofree
   (package
@@ -1093,7 +1135,7 @@ transparently through a bridge.")
     (synopsis "NetLink protocol library suite")
     (description
      "The libnl suite is a collection of libraries providing APIs to netlink
-protocol based Linux kernel interfaces.  Netlink is an IPC mechanism primarly
+protocol based Linux kernel interfaces.  Netlink is an IPC mechanism primarily
 between the kernel and user space processes.  It was designed to be a more
 flexible successor to ioctl to provide mainly networking related kernel
 configuration and monitoring interfaces.")
@@ -1704,6 +1746,113 @@ interface.")
     (home-page "http://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/Tools.html")
     (license gpl2+)))
 
+(define-public crda
+  (package
+    (name "crda")
+    (version "3.18")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "mirror://kernel.org/software/network/crda/"
+                                  "crda-" version ".tar.xz"))
+              (sha256
+               (base32
+                "1gydiqgb08d9gbx4l6gv98zg3pljc984m50hmn3ysxcbkxkvkz23"))
+              (patches (list (search-patch "crda-optional-gcrypt.patch")))))
+    (build-system gnu-build-system)
+    (arguments
+     '(#:phases (modify-phases %standard-phases
+                  (delete 'configure)
+                  (add-before
+                   'build 'no-werror-no-ldconfig
+                   (lambda _
+                     (substitute* "Makefile"
+                       (("-Werror")  "")
+                       (("ldconfig") "true"))
+                     #t))
+                  (add-before
+                   'build 'set-regulator-db-file-name
+                   (lambda* (#:key inputs #:allow-other-keys)
+                     ;; Tell CRDA where to find our database.
+                     (let ((regdb (assoc-ref inputs "wireless-regdb")))
+                       (substitute* "crda.c"
+                         (("\"/lib/crda/regulatory.bin\"")
+                          (string-append "\"" regdb
+                                         "/lib/crda/regulatory.bin\"")))
+                       #t))))
+       #:test-target "verify"
+       #:make-flags (let ((out   (assoc-ref %outputs "out"))
+                          (regdb (assoc-ref %build-inputs "wireless-regdb")))
+                      (list "CC=gcc" "V=1"
+
+                            ;; Disable signature-checking on 'regulatory.bin'.
+                            ;; The reason is that this simplifies maintenance
+                            ;; on our side (no need to manage a distro key
+                            ;; pair), and we can guarantee integrity of
+                            ;; 'regulatory.bin' by other means anyway, such as
+                            ;; 'guix gc --verify'.  See
+                            ;; <https://wireless.wiki.kernel.org/en/developers/regulatory/wireless-regdb>
+                            ;; for a discssion.
+                            "USE_OPENSSL=0"
+
+                            (string-append "PREFIX=" out)
+                            (string-append "SBINDIR=" out "/sbin/")
+                            (string-append "UDEV_RULE_DIR="
+                                           out "/lib/udev/rules.d")
+                            (string-append "LDFLAGS=-Wl,-rpath="
+                                           out "/lib -L.")
+                            (string-append "REG_BIN=" regdb
+                                           "/lib/crda/regulatory.bin")))))
+    (native-inputs `(("pkg-config" ,pkg-config)
+                     ("python" ,python-2)
+                     ("wireless-regdb" ,wireless-regdb)))
+    (inputs `(("libnl" ,libnl)))
+    (home-page
+     "https://wireless.wiki.kernel.org/en/developers/Regulatory/CRDA")
+    (synopsis "Central regulatory domain agent (CRDA) for WiFi")
+    (description
+     "The Central Regulatory Domain Agent (CRDA) acts as the udev helper for
+communication between the kernel Linux and user space for regulatory
+compliance.")
+    (license copyleft-next)))
+
+(define-public wireless-regdb
+  (package
+    (name "wireless-regdb")
+    (version "2015.04.06")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append
+                    "mirror://kernel.org/software/network/wireless-regdb/"
+                    "wireless-regdb-" version ".tar.xz"))
+              (sha256
+               (base32
+                "0czi83k311fp27z42hxjm8vi88fsbc23mhavv96lkb4pmari0jjc"))))
+    (build-system gnu-build-system)
+    (arguments
+     '(#:phases (modify-phases %standard-phases
+                  (delete 'configure))
+       #:tests? #f                                ;no tests
+       #:make-flags (let ((out (assoc-ref %outputs "out")))
+                      (list (string-append "PREFIX=" out)
+                            (string-append "LSB_ID=GuixSD")
+                            (string-append "DISTRO_PUBKEY=/dev/null")
+                            (string-append "DISTRO_PRIVKEY=/dev/null")
+                            (string-append "REGDB_PUBKEY=/dev/null")
+
+                            ;; Leave that empty so that db2bin.py doesn't try
+                            ;; to sign 'regulatory.bin'.  This allows us to
+                            ;; avoid managing a key pair for the whole distro.
+                            (string-append "REGDB_PRIVKEY=")))))
+    (native-inputs `(("python" ,python-2)))
+    (home-page
+     "https://wireless.wiki.kernel.org/en/developers/regulatory/wireless-regdb")
+    (synopsis "Wireless regulatory database")
+    (description
+     "This package contains the wireless regulatory database Central
+Regulatory Database Agent (CRDA) daemon.  The database contains information on
+country-specific regulations for the wireless spectrum.")
+    (license isc)))
+
 (define-public lm-sensors
   (package
     (name "lm-sensors")
@@ -1940,10 +2089,10 @@ thanks to the use of namespaces.")
        #:phases (alist-delete 'configure %standard-phases)
        #:tests? #f))  ; no test suite
     (home-page "http://sourceforge.net/projects/hdparm/")
-    (synopsis "tune hard disk parameters for high performance")
+    (synopsis "Tune hard disk parameters for high performance")
     (description
      "Get/set device parameters for Linux SATA/IDE drives.  It's primary use
-is for enabling irq-unmasking and IDE multiplemode.")
+is for enabling irq-unmasking and IDE multiple-mode.")
     (license (non-copyleft "file://LICENSE.TXT"))))
 
 (define-public acpid
@@ -1985,7 +2134,7 @@ specified in /etc/acpi/events and execute the rules that match the event.")
     (home-page "http://linux-diag.sourceforge.net/Sysfsutils.html")
     (synopsis "System utilities based on Linux sysfs")
     (description
-     "These are a set of utilites built upon sysfs, a virtual filesystem in
+     "These are a set of utilities built upon sysfs, a virtual filesystem in
 Linux kernel versions 2.5+ that exposes a system's device tree.  The package
 also contains the libsysfs library.")
     ;; The library is under lgpl2.1+ (all files say "or any later version").
@@ -2014,13 +2163,6 @@ also contains the libsysfs library.")
            (substitute* "configure"
              (("includedir='(\\$\\{prefix\\}/include)'" all orig)
               (string-append "includedir='" orig "/sysfs'")))))))
-    ;; XXX sysfsutils-1.3.0's config.guess fails on mips64el
-    (arguments `(#:configure-flags
-                 '(,@(if (%current-target-system)
-                         '()
-                         (let ((triplet
-                                (nix-system->gnu-triplet (%current-system))))
-                           (list (string-append "--build=" triplet)))))))
     (synopsis "System utilities based on Linux sysfs (version 1.x)")))
 
 (define-public cpufrequtils
@@ -2046,7 +2188,7 @@ also contains the libsysfs library.")
     (home-page "https://www.kernel.org/pub/linux/utils/kernel/cpufreq/")
     (synopsis "Utilities to get and set CPU frequency on Linux")
     (description
-     "The cpufrequtils suite contains utilities to retreive CPU frequency
+     "The cpufrequtils suite contains utilities to retrieve CPU frequency
 information, and set the CPU frequency if supported, using the cpufreq
 capabilities of the Linux kernel.")
     (license gpl2)))
@@ -2094,7 +2236,7 @@ protocol in question.")
     (synopsis "AV/C protocol library for IEEE 1394")
     (description
      "Libavc1394 is a programming interface to the AV/C specification from
-the 1394 Trade Assocation.  AV/C stands for Audio/Video Control.")
+the 1394 Trade Association.  AV/C stands for Audio/Video Control.")
     (license lgpl2.1+)))
 
 (define-public libiec61883

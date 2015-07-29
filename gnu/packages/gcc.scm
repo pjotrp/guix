@@ -21,7 +21,7 @@
 
 (define-module (gnu packages gcc)
   #:use-module ((guix licenses)
-                #:select (gpl3+ gpl2+ lgpl2.1+ lgpl2.0+))
+                #:select (gpl3+ gpl2+ lgpl2.1+ lgpl2.0+ fdl1.3+))
   #:use-module (gnu packages)
   #:use-module (gnu packages bootstrap)
   #:use-module (gnu packages compression)
@@ -59,9 +59,7 @@ where the OS part is overloaded to denote a specific ABI---into GCC
          '("--with-arch=armv7-a"
            "--with-float=hard"
            "--with-mode=thumb"
-
-           ;; See <https://wiki.debian.org/ArmHardFloatPort/VfpComparison#FPU>
-           "--with-fpu=vfpv3-d16"))
+           "--with-fpu=neon"))
 
         (else
          ;; TODO: Add `arm.*-gnueabi', etc.
@@ -323,31 +321,27 @@ Go.  It also includes runtime support libraries for these languages.")
 
 (define-public gcc-4.9
   (package (inherit gcc-4.8)
-    (version "4.9.2")
+    (version "4.9.3")
     (source (origin
               (method url-fetch)
               (uri (string-append "mirror://gnu/gcc/gcc-"
                                   version "/gcc-" version ".tar.bz2"))
               (sha256
                (base32
-                "1pbjp4blk2ycaa6r3jmw4ky5f1s9ji3klbqgv8zs2sl5jn1cj810"))
-              (patches (map search-patch
-                            '("gcc-arm-link-spec-fix.patch"
-                              "gcc-libvtv-runpath.patch")))))))
+                "0zmnm00d2a1hsd41g34bhvxzvxisa2l584q3p447bd91lfjv4ci3"))
+              (patches (list (search-patch "gcc-libvtv-runpath.patch")))))))
 
-(define-public gcc-5.1
+(define-public gcc-5
   (package (inherit gcc-4.9)
-    (version "5.1.0")
+    (version "5.2.0")
     (source (origin
               (method url-fetch)
               (uri (string-append "mirror://gnu/gcc/gcc-"
                                   version "/gcc-" version ".tar.bz2"))
               (sha256
                (base32
-                "1bd5vj4px3s8nlakbgrh38ynxq4s654m6nxz7lrj03mvkkwgvnmp"))
-              (patches (map search-patch
-                            '("gcc-arm-link-spec-fix.patch"
-                              "gcc-5.0-libvtv-runpath.patch")))))))
+                "1bccp8a106xwz3wkixn65ngxif112vn90qf95m6lzpgpnl25p0sz"))
+              (patches (list (search-patch "gcc-5.0-libvtv-runpath.patch")))))))
 
 (define-public gcc gcc-4.9)
 
@@ -608,8 +602,8 @@ using compilers other than GCC."
 (define-public libstdc++-doc-4.9
   (make-libstdc++-doc gcc-4.9))
 
-(define-public libstdc++-doc-5.1
-  (make-libstdc++-doc gcc-5.1))
+(define-public libstdc++-doc-5
+  (make-libstdc++-doc gcc-5))
 
 (define-public isl
   (package
@@ -680,3 +674,53 @@ CLooG is designed to avoid control overhead and to produce a very
 effective code.")
     (license gpl2+)))
 
+(define-public gnu-c-manual
+  (package
+    (name "gnu-c-manual")
+    (version "0.2.4")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "mirror://gnu/gnu-c-manual/gnu-c-manual-"
+                                  version ".tar.gz"))
+              (sha256
+               (base32
+                "0cf4503shr7hxkbrjfi9dky6q2lqk95bgbgbjmvj2s2x312kakd9"))))
+    (build-system gnu-build-system)
+    (native-inputs `(("texinfo" ,texinfo)))
+    (arguments
+     '(#:phases (modify-phases %standard-phases
+                  (delete 'configure)
+                  (delete 'check)
+                  (replace 'build
+                           (lambda _
+                             (zero? (system* "make"
+                                             "gnu-c-manual.info"
+                                             "gnu-c-manual.html"))))
+                  (replace 'install
+                           (lambda* (#:key outputs #:allow-other-keys)
+                             (let* ((out (assoc-ref outputs "out"))
+                                    (info (string-append out "/share/info"))
+                                    (html (string-append
+                                           out "/share/doc/gnu-c-manual")))
+                               (mkdir-p info)
+                               (mkdir-p html)
+
+                               (for-each (lambda (file)
+                                           (copy-file file
+                                                      (string-append info "/"
+                                                                     file)))
+                                         (find-files "." "\\.info(-[0-9])?$"))
+                               (for-each (lambda (file)
+                                           (copy-file file
+                                                      (string-append html "/"
+                                                                     file)))
+                                         (find-files "." "\\.html$"))
+                               #t))))))
+    (synopsis "Reference manual for the C programming language")
+    (description
+     "This is a reference manual for the C programming language, as
+implemented by the GNU C Compiler (gcc).  As a reference, it is not intended
+to be a tutorial of the language.  Rather, it outlines all of the constructs
+of the language.  Library functions are not included.")
+    (home-page "http://www.gnu.org/software/gnu-c-manual")
+    (license fdl1.3+)))

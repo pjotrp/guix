@@ -139,14 +139,7 @@ old-fashioned output methods with powerful ascii-art renderer.")
      `(("autoconf" ,autoconf)
        ("automake" ,automake)
        ("libtool" ,libtool)))
-    (arguments `(#:configure-flags
-                 '("--enable-shared"
-                   ;; FIXME: liba52-0.7.4's config.guess fails on mips64el.
-                   ,@(if (%current-target-system)
-                         '()
-                         (let ((triplet
-                                (nix-system->gnu-triplet (%current-system))))
-                           (list (string-append "--build=" triplet)))))
+    (arguments `(#:configure-flags '("--enable-shared")
                  #:phases
                  (modify-phases %standard-phases
                    ;; XXX We need to run ./bootstrap because of the build
@@ -376,14 +369,14 @@ standards (MPEG-2, MPEG-4 ASP/H.263, MPEG-4 AVC/H.264, and VC-1/VMW3).")
 (define-public ffmpeg
   (package
     (name "ffmpeg")
-    (version "2.7.1")
+    (version "2.7.2")
     (source (origin
              (method url-fetch)
              (uri (string-append "http://www.ffmpeg.org/releases/ffmpeg-"
                                  version ".tar.bz2"))
              (sha256
               (base32
-               "087pyx1wxvniq3wgj6z80wrb7ampwwsmwndmr7lymzhm4iyvj1vy"))))
+               "1wlygd0jp34dk4qagi4h9psn4yk8zgyj7zy9lrpm5332mm87bsvw"))))
     (build-system gnu-build-system)
     (inputs
      `(("fontconfig" ,fontconfig)
@@ -527,7 +520,7 @@ audio/video codec library.")
 (define-public vlc
   (package
     (name "vlc")
-    (version "2.2.0")
+    (version "2.2.1")
     (source (origin
              (method url-fetch)
              (uri (string-append
@@ -535,7 +528,7 @@ audio/video codec library.")
                    version "/vlc-" version ".tar.xz"))
              (sha256
               (base32
-               "05smn9hqdp7iscc1dj4cxp1mrlad7b50lhlnlqisfzf493i2f2jy"))))
+               "1jqzrzrpw6932lbkf863xk8cfmn4z2ngbxz7w8ggmh4f6xz9sgal"))))
     (build-system gnu-build-system)
     (native-inputs
      `(("git" ,git) ; needed for a test
@@ -570,7 +563,7 @@ audio/video codec library.")
        ("perl" ,perl)
        ("pulseaudio" ,pulseaudio)
        ("python" ,python-wrapper)
-       ("qt" ,qt-4)
+       ("qt" ,qt)
        ("sdl" ,sdl)
        ("sdl-image" ,sdl-image)
        ("speex" ,speex)
@@ -665,7 +658,6 @@ treaming protocols.")
                                     (or (%current-target-system)
                                         (nix-system->gnu-triplet
                                          (%current-system)))))))
-                      "--disable-neon"
                       "--disable-iwmmxt"))))
           %standard-phases)))
     (home-page "http://www.mplayerhq.hu/design7/news.html")
@@ -905,23 +897,6 @@ projects while introducing many more.")
                      (zero? (system* "./configure"
                                      "--enable-shared"
                                      "--as=yasm"
-                                     ,@(if (and (not (%current-target-system))
-                                                (string-prefix?
-                                                 "armhf-"
-                                                 (%current-system)))
-                                           ;; When building on ARMv7, libvpx
-                                           ;; assumes that NEON will be
-                                           ;; available.  On Guix, armhf
-                                           ;; does not require NEON, so we
-                                           ;; build for ARMv6 and -marm (since
-                                           ;; no thumb2 on ARMv6) to ensure
-                                           ;; compatibility with all ARMv7
-                                           ;; cores we support.  Based on
-                                           ;; the Debian libvpx package.
-                                           '("--target=armv6-linux-gcc"
-                                             "--extra-cflags=-marm"
-                                             "--enable-small")
-                                           '())
                                      (string-append "--prefix=" out)))))
                  %standard-phases)
        #:tests? #f)) ; no check target
@@ -1115,7 +1090,8 @@ for use with HTML5 video.")
                    version ".tar.gz"))
              (sha256
               (base32
-               "10p60wjkzf1bxqcb6i7bx4hbqy3vqg598p3l9lc4v2c9b8iqr682"))))
+               "10p60wjkzf1bxqcb6i7bx4hbqy3vqg598p3l9lc4v2c9b8iqr682"))
+             (patches (map search-patch '("avidemux-install-to-lib.patch")))))
     (build-system cmake-build-system)
     (native-inputs
      `(("pkg-config" ,pkg-config)))
@@ -1157,7 +1133,9 @@ for use with HTML5 video.")
            (with-directory-excursion "avidemux_core/ffmpeg_package"
              (substitute* "ffmpeg-1.2.1/configure"
                (("#! /bin/sh") (string-append "#!" (which "bash"))))
-             (system* "tar" "cjf" "ffmpeg-1.2.1.tar.bz2" "ffmpeg-1.2.1")
+             (system* "tar" "cjf" "ffmpeg-1.2.1.tar.bz2" "ffmpeg-1.2.1"
+                      ;; avoid non-determinism in the archive
+                      "--mtime=@0" "--owner=root:0" "--group=root:0")
              (delete-file-recursively "ffmpeg-1.2.1")))
          (alist-replace 'configure
           (lambda _
@@ -1168,7 +1146,7 @@ for use with HTML5 video.")
             (lambda* (#:key inputs outputs #:allow-other-keys)
               (let*
                 ((out (assoc-ref outputs "out"))
-                 (lib (string-append out "/lib64"))
+                 (lib (string-append out "/lib"))
                  (top (getcwd))
                  (sdl (assoc-ref inputs "sdl"))
                  (build_component
@@ -1298,7 +1276,7 @@ and custom quantization matrices.")
 (define-public livestreamer
   (package
     (name "livestreamer")
-    (version "1.12.1")
+    (version "1.12.2")
     (source (origin
               (method url-fetch)
               (uri (string-append
@@ -1307,7 +1285,7 @@ and custom quantization matrices.")
               (file-name (string-append "livestreamer-" version ".tar.gz"))
               (sha256
                (base32
-                "1dhgk8v8q1h3km4g5jc0cmjsxdaa2d456fvdb2wk7hmxmmwbqm9j"))))
+                "1fp3d3z2grb1ls97smjkraazpxnvajda2d1g1378s6gzmda2jvjd"))))
     (build-system python-build-system)
     (arguments
      '(#:tests? #f)) ; tests rely on external web servers

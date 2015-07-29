@@ -116,6 +116,11 @@
        ;; gremlin) doesn't support it yet, so skip this phase.
        #:validate-runpath? #f
 
+       ;; Don't pass --build=<triplet>, because the configure script
+       ;; auto-detects slightly different triplets for --host and --target and
+       ;; then complains that they don't match.
+       #:build #f
+
        #:modules ((guix build gnu-build-system)
                   (guix build utils)
                   (guix build rpath)
@@ -712,7 +717,7 @@ and high speed.")
         (base32
          "0xa3j0gwr6k5vizxybnzk5fgb3pppgspi6mysnp2gwjp2dbrxkzr"))))
     (build-system haskell-build-system)
-    (inputs 
+    (inputs
      `(("ghc-quickcheck" ,ghc-quickcheck)))
     (home-page "http://hackage.haskell.org/package/split")
     (synopsis
@@ -769,7 +774,7 @@ is also parametric in the input stream type.")
         (base32
          "01hc71k1z9m0g0dv4zsvq5d2dvbgyc5p01hryw5c53792yi2fm25"))))
     (build-system haskell-build-system)
-    (inputs 
+    (inputs
      `(("ghc-quickcheck" ,ghc-quickcheck)))
     ;; these inputs are necessary to use this library
     (propagated-inputs
@@ -837,8 +842,8 @@ mutable and immutable), with a powerful loop optimisation framework.")
      `(("ghc-parsec" ,ghc-parsec)))
     (home-page
      "https://github.com/haskell/network-uri")
-    (synopsis "Labrary for URI manipulation")
-    (description "This package provides an URI manipulation inteface.  In
+    (synopsis "Library for URI manipulation")
+    (description "This package provides an URI manipulation interface.  In
 'network-2.6' the 'Network.URI' module was split off from the 'network'
 package into this package.")
     (license bsd-3)))

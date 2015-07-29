@@ -101,6 +101,7 @@
                                                 (gnu build linux-modules)
                                                 (gnu build file-systems)
                                                 (guix elf)
+                                                (guix records)
                                                 (guix build utils)
                                                 (guix build syscalls)
                                                 (guix build store-copy)))
@@ -212,7 +213,7 @@ the image."
                     (guix build utils))
 
        (let ((inputs
-              '#$(append (list qemu parted grub e2fsprogs util-linux)
+              '#$(append (list qemu parted grub e2fsprogs)
                          (map canonical-package
                               (list sed grep coreutils findutils gawk))
                          (if register-closures? (list guix) '())))
@@ -227,18 +228,24 @@ the image."
 
          (set-path-environment-variable "PATH" '("bin" "sbin") inputs)
 
-         (let ((graphs '#$(match inputs
-                            (((names . _) ...)
-                             names))))
+         (let* ((graphs     '#$(match inputs
+                                 (((names . _) ...)
+                                  names)))
+                (initialize (root-partition-initializer
+                             #:closures graphs
+                             #:copy-closures? #$copy-inputs?
+                             #:register-closures? #$register-closures?
+                             #:system-directory #$os-derivation))
+                (partitions (list (partition
+                                   (size #$(- disk-image-size
+                                              (* 10 (expt 2 20))))
+                                   (label #$file-system-label)
+                                   (file-system #$file-system-type)
+                                   (bootable? #t)
+                                   (initializer initialize)))))
            (initialize-hard-disk "/dev/vda"
-                                 #:system-directory #$os-derivation
-                                 #:grub.cfg #$grub-configuration
-                                 #:closures graphs
-                                 #:copy-closures? #$copy-inputs?
-                                 #:register-closures? #$register-closures?
-                                 #:disk-image-size #$disk-image-size
-                                 #:file-system-type #$file-system-type
-                                 #:file-system-label #$file-system-label)
+                                 #:partitions partitions
+                                 #:grub.cfg #$grub-configuration)
            (reboot))))
    #:system system
    #:make-disk-image? #t
@@ -493,7 +500,8 @@ exec " #$qemu "/bin/" #$(qemu-command (%current-system))
        #~(" -kernel " #$(operating-system-kernel os) "/bzImage \
             -initrd " #$os-drv "/initrd \
             -append \"" #$(if graphic? "" "console=ttyS0 ")
-            "--system=" #$os-drv " --load=" #$os-drv "/boot --root=/dev/vda1\" "))
+            "--system=" #$os-drv " --load=" #$os-drv "/boot --root=/dev/vda1 "
+            (string-join (list #+@(operating-system-kernel-arguments os))) "\" "))
 #$(common-qemu-options image
                        (map file-system-mapping-source
                             (cons %store-mapping mappings)))

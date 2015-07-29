@@ -279,7 +279,7 @@ System style license, and has no special dependencies.")
      "Wmctrl allows to interact with an X window manager that is compatible
 with the EWMH/NetWM specification.  It can query the window manager for
 information, and request for certain window management actions (resize and
-move windows, switch between desktops, etc.)")
+move windows, switch between desktops, etc.).")
     (license license:gpl2+)))
 
 (define-public scrot
@@ -447,13 +447,6 @@ transparent text on your screen.")
     (inputs
      `(("libx11" ,libx11)
        ("guile" ,guile-2.0)))
-    (arguments `(#:configure-flags
-                 '(;; FIXME: xbindkeys-1.8.6's config.guess fails on mips64el.
-                   ,@(if (%current-target-system)
-                         '()
-                         (let ((triplet
-                                (nix-system->gnu-triplet (%current-system))))
-                           (list (string-append "--build=" triplet)))))))
     (home-page "http://www.nongnu.org/xbindkeys/")
     (synopsis "Associate a combination of keys with a shell command")
     (description

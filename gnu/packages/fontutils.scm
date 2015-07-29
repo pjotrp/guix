@@ -34,19 +34,20 @@
   #:use-module ((guix licenses) #:prefix license:)
   #:use-module (guix packages)
   #:use-module (guix download)
+  #:use-module (guix svn-download)
   #:use-module (guix build-system cmake)
   #:use-module (guix build-system gnu))
 
 (define-public freetype
   (package
    (name "freetype")
-   (version "2.5.5")
+   (version "2.6")
    (source (origin
             (method url-fetch)
             (uri (string-append "mirror://savannah/freetype/freetype-"
                                 version ".tar.bz2"))
             (sha256 (base32
-                     "1fdgl7js99xv1yy5zx1ravmqd0jxlnqpv7zcl954h4hbg15wqyrq"))))
+                     "0zilx15fwcpa8hmcxpc423jwb8ijw4qpq968kh18akvn4j0znsc4"))))
    (build-system gnu-build-system)
    (arguments
     `(#:phases
@@ -139,27 +140,33 @@ X11-system or any other graphical user interface.")
 (define-public teckit
   (package
    (name "teckit")
-   (version "2.5.1")
+   (version "2.5.4")
    (source (origin
-            (method url-fetch)
-            (uri (list
-                  (string-append
-                   "http://scripts.sil.org/svn-view/teckit/TAGS/TECkit_"
-                   (string-map (lambda (x) (if (char=? x #\.) #\_ x)) version)
-                   ".tar.gz")
-                  "http://pkgs.fedoraproject.org/repo/pkgs/teckit/TECkit_2_5_1.tar.gz/4913f71f0f42bfd9cf8f161688b35dea/TECkit_2_5_1.tar.gz"
-                  ;; This used to be the canonical URL but it vanished.
-                  ;; See <http://bugs.gnu.org/19600>.
-                  ;; (string-append
-                  ;;  "http://scripts.sil.org/svn-view/teckit/TAGS/TECkit_"
-                  ;;  (string-map (lambda (x) (if (char=? x #\.) #\_ x)) version)
-                  ;;  ".tar.gz")
-                  ))
-            (sha256 (base32
-                     "0fjiwvic8mdxpkyccfp7zh26y9xnvkp0skqbyfkrjiacd191k82r"))
-            (patches (list (search-patch "teckit-cstdio.patch")))))
+            ;; Downloaded tarballs vary with each download, so we use an
+            ;; svn snapshot. The 2.5.4 release seems to be made in r128,
+            ;; but r132 updates additional files to contain the correct
+            ;; version number (r129 to r131 do not concern TRUNK).
+            (method svn-fetch)
+            (uri (svn-reference
+                   (url "https://scripts.sil.org/svn-public/teckit/TRUNK")
+                   (revision 132)))
+            (file-name (string-append name "-" version))
+            (sha256
+              (base32
+                "1xqkqgw30pb24snh46srmjs2j4zhz2dfi5pf7znia0k34mrpwivz"))))
    (build-system gnu-build-system)
    (inputs `(("zlib" ,zlib)))
+   (native-inputs
+    `(("autoconf" ,autoconf)
+      ("automake" ,automake)
+      ("libtool" ,libtool)
+      ("perl" ,perl))) ; for the tests
+   (arguments
+    `(#:phases
+      (modify-phases %standard-phases
+        (add-after 'unpack 'autogen
+          (lambda _
+            (zero? (system* "sh" "autogen.sh")))))))
    (synopsis "Toolkit for encoding conversions")
    (description
     "TECkit is a low-level toolkit intended to be used by other applications

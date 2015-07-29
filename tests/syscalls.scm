@@ -152,15 +152,15 @@
                          (status:exit-val status))))
                (eq? #t result))))))))
 
-(test-assert "all-network-interfaces"
-  (match (all-network-interfaces)
+(test-assert "all-network-interface-names"
+  (match (all-network-interface-names)
     (((? string? names) ..1)
      (member "lo" names))))
 
-(test-assert "network-interfaces"
-  (match (network-interfaces)
+(test-assert "network-interface-names"
+  (match (network-interface-names)
     (((? string? names) ..1)
-     (lset<= string=? names (all-network-interfaces)))))
+     (lset<= string=? names (all-network-interface-names)))))
 
 (test-assert "network-interface-flags"
   (let* ((sock  (socket AF_INET SOCK_STREAM 0))
@@ -210,6 +210,29 @@
         (close-port sock)
         ;; We get EPERM with Linux 3.18ish and EACCES with 2.6.32.
         (memv (system-error-errno args) (list EPERM EACCES))))))
+
+(test-equal "network-interfaces returns one or more interfaces"
+  '(#t #t #t)
+  (match (network-interfaces)
+    ((interfaces ..1)
+     (list (every interface? interfaces)
+           (every string? (map interface-name interfaces))
+           (every vector? (map interface-address interfaces))))))
+
+(test-equal "network-interfaces returns \"lo\""
+  (list #t (make-socket-address AF_INET (inet-pton AF_INET "127.0.0.1") 0))
+  (match (filter (lambda (interface)
+                   (string=? "lo" (interface-name interface)))
+                 (network-interfaces))
+    ((loopbacks ..1)
+     (list (every (lambda (lo)
+                    (not (zero? (logand IFF_LOOPBACK (interface-flags lo)))))
+                  loopbacks)
+           (match (find (lambda (lo)
+                          (= AF_INET (sockaddr:fam (interface-address lo))))
+                        loopbacks)
+             (#f #f)
+             (lo (interface-address lo)))))))
 
 (test-end)
 

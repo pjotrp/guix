@@ -8,6 +8,7 @@
 ;;; Copyright © 2015 Omar Radwan <toxemicsquire4@gmail.com>
 ;;; Copyright © 2015 Pierre-Antoine Rault <par@rigelk.eu>
 ;;; Copyright © 2015 Ricardo Wurmus <rekado@elephly.net>
+;;; Copyright © 2015 Christopher Allan Webber <cwebber@dustycloud.org>
 ;;;
 ;;; This file is part of GNU Guix.
 ;;;
@@ -27,7 +28,7 @@
 (define-module (gnu packages python)
   #:use-module ((guix licenses)
                 #:select (asl2.0 bsd-4 bsd-3 bsd-2 non-copyleft cc0 x11 x11-style
-                          gpl2 gpl2+ gpl3+ lgpl2.0+ lgpl2.1 lgpl2.1+ lgpl3+
+                          gpl2 gpl2+ gpl3+ lgpl2.0+ lgpl2.1 lgpl2.1+ lgpl3+ agpl3+
                           psfl public-domain x11-style))
   #:use-module ((guix licenses) #:select (expat zlib) #:prefix license:)
   #:use-module (gnu packages)
@@ -47,9 +48,11 @@
   #:use-module (gnu packages multiprecision)
   #:use-module (gnu packages networking)
   #:use-module (gnu packages ncurses)
+  #:use-module (gnu packages pcre)
   #:use-module (gnu packages perl)
   #:use-module (gnu packages pkg-config)
   #:use-module (gnu packages readline)
+  #:use-module (gnu packages statistics)
   #:use-module (gnu packages texlive)
   #:use-module (gnu packages texinfo)
   #:use-module (gnu packages tls)
@@ -155,24 +158,40 @@
                 "-L" zlib "/lib "
                 "-Wl,-rpath=" out "/lib")))
 
+        #:modules ((ice-9 ftw)
+                   ,@%gnu-build-system-modules)
         #:phases
-        (alist-cons-before
-         'configure 'patch-lib-shells
-         (lambda _
-           ;; Filter for existing files, since some may not exist in all
-           ;; versions of python that are built with this recipe.
-           (substitute* (filter file-exists?
-                                '("Lib/subprocess.py"
-                                  "Lib/popen2.py"
-                                  "Lib/distutils/tests/test_spawn.py"
-                                  "Lib/test/test_subprocess.py"))
-             (("/bin/sh") (which "sh"))))
-         (alist-cons-before
-          'check 'pre-check
-          (lambda _
-            ;; 'Lib/test/test_site.py' needs a valid $HOME
-            (setenv "HOME" (getcwd)))
-          %standard-phases))))
+        (modify-phases %standard-phases
+          (add-before
+           'configure 'patch-lib-shells
+           (lambda _
+             ;; Filter for existing files, since some may not exist in all
+             ;; versions of python that are built with this recipe.
+             (substitute* (filter file-exists?
+                                  '("Lib/subprocess.py"
+                                    "Lib/popen2.py"
+                                    "Lib/distutils/tests/test_spawn.py"
+                                    "Lib/test/test_subprocess.py"))
+               (("/bin/sh") (which "sh")))
+             #t))
+          (add-before
+           'check 'pre-check
+           (lambda _
+             ;; 'Lib/test/test_site.py' needs a valid $HOME
+             (setenv "HOME" (getcwd))
+             #t))
+          (add-after
+           'unpack 'set-source-file-times-to-1980
+           ;; XXX One of the tests uses a ZIP library to pack up some of the
+           ;; source tree, and fails with "ZIP does not support timestamps
+           ;; before 1980".  Work around this by setting the file times in the
+           ;; source tree to sometime in early 1980.
+           (lambda _
+             (let ((circa-1980 (* 10 366 24 60 60)))
+               (ftw "." (lambda (file stat flag)
+                          (utime file circa-1980 circa-1980)
+                          #t))
+               #t))))))
     (inputs
      `(("bzip2" ,bzip2)
        ("gdbm" ,gdbm)
@@ -247,6 +266,36 @@ data types.")
      "\n\nThis wrapper package provides symbolic links to the python binaries
       without version suffix."))))
 
+(define-public python-psutil
+  (package
+    (name "python-psutil")
+    (version "3.0.1")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append
+             "https://pypi.python.org/packages/source/p/psutil/psutil-"
+             version ".tar.gz"))
+       (sha256
+        (base32
+         "00c8h1mzqysih99z8pnbmdv117d2naldf11yjy50dhykxsf3n89z"))))
+    (build-system python-build-system)
+    (native-inputs
+     `(("python-setuptools" ,python-setuptools)))
+    (home-page "https://pypi.python.org/pypi/psutil/")
+    (synopsis "Library for retrieving information on running processes")
+    (description
+     "psutil (Python system and process utilities) is a library for retrieving
+information on running processes and system utilization (CPU, memory, disks,
+network) in Python.  It is useful mainly for system monitoring, profiling and
+limiting process resources and management of running processes.  It implements
+many functionalities offered by command line tools such as: ps, top, lsof,
+netstat, ifconfig, who, df, kill, free, nice, ionice, iostat, iotop, uptime,
+pidof, tty, taskset, pmap.")
+    (license bsd-3)))
+
+(define-public python2-psutil
+  (package-with-python2 python-psutil))
 
 (define-public python-pytz
   (package
@@ -628,7 +677,7 @@ datetime module, available in Python 2.3+.")
     (synopsis
      "Parse human-readable date/time text")
     (description
-     "Parse human-readable date/time text")
+     "Parse human-readable date/time text.")
     (license asl2.0)))
 
 (define-public python-pandas
@@ -808,7 +857,7 @@ Database API 2.0T.")
      "Mechanize implements stateful programmatic web browsing in Python,
 after Andy Lester’s Perl module WWW::Mechanize.")
     (license (non-copyleft "file://COPYING"
-                        "See COPYING in the distribution."))))
+                           "See COPYING in the distribution."))))
 
 
 (define-public python-simplejson
@@ -828,8 +877,9 @@ after Andy Lester’s Perl module WWW::Mechanize.")
     (synopsis
      "Json library for Python")
     (description
-     "JSON (JavaScript Object Notation) is a subset of JavaScript syntax
- (ECMA-262 3rd edition) used as a lightweight data interchange format.
+     "JSON (JavaScript Object Notation) is a subset of JavaScript
+syntax (ECMA-262 3rd edition) used as a lightweight data interchange
+format.
 
 Simplejson exposes an API familiar to users of the standard library marshal
 and pickle modules.  It is the externally maintained version of the json
@@ -1524,7 +1574,7 @@ executed.")
      "Python test discovery for unittest")
     (description
      "Discover provides test discovery for unittest, a feature that has been
-backported from Python 2.7 for Python 2.4+")
+backported from Python 2.7 for Python 2.4+.")
     (license bsd-3)))
 
 (define-public python2-discover
@@ -2066,6 +2116,122 @@ sources.")
 (define-public python2-sphinx-rtd-theme
   (package-with-python2 python-sphinx-rtd-theme))
 
+(define-public python-feedgenerator
+  (package
+    (name "python-feedgenerator")
+    (version "20150710.97185b7")
+    (source
+     ;; Using the git checkout for now because license file not added till
+     ;; https://github.com/dmdm/feedgenerator-py3k/commit/97185b7566c240c4bf5ed80db7d6c271204dab39
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/dmdm/feedgenerator-py3k.git")
+             (commit "97185b7566c240c4bf5ed80db7d6c271204dab39")))
+       (sha256
+        (base32
+         "0dbd6apij5j1923ib905x0srgcyls4wlabqlwp4dzkwmksvnrr2a"))))
+    (arguments
+     `(;; With standard flags, the install phase attempts to create a zip'd
+       ;; egg file, and fails with an error: 'ZIP does not support timestamps
+       ;; before 1980'
+       #:configure-flags '("--single-version-externally-managed"
+                           "--record=feedgenerator.txt")))
+    (build-system python-build-system)
+    (inputs
+     `(("python-setuptools" ,python-setuptools)
+       ("python-pytz" ,python-pytz)
+       ("python-six" ,python-six)))
+    (home-page
+     "https://github.com/dmdm/feedgenerator-py3k.git")
+    (synopsis
+     "Standalone version of Django's Atom/RSS feed generator")
+    (description
+     "Feedgenerator-py3k is a standalone version of Django's feedgenerator,
+which can produce feeds in RSS 2.0, RSS 0.91, and Atom formats.")
+    (license bsd-3)))
+
+(define-public python2-feedgenerator
+  (package-with-python2 python-feedgenerator))
+
+(define-public python-blinker
+  (package
+    (name "python-blinker")
+    (version "1.3")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append
+             "https://pypi.python.org/packages/source/b/blinker/blinker-"
+             version ".tar.gz"))
+       (sha256
+        (base32
+         "0bvfxkmjx6bpa302pv7v2vw5rwr3dlzjzfdp3bj628i6144024b8"))))
+    (build-system python-build-system)
+    (native-inputs
+     `(("python-setuptools" ,python-setuptools)))
+    ;; No "test" command supplied to setuptools, so unless there's another way
+    ;; to run tests, we're skipping them!
+    (arguments '(#:tests? #f))
+    (home-page "http://pythonhosted.org/blinker/")
+    (synopsis "Fast, simple object-to-object and broadcast signaling")
+    (description
+     "Blinker provides a fast dispatching system that allows any number of
+interested parties to subscribe to events, or \"signals\".")
+    (license license:expat)))
+
+(define-public python2-blinker
+  (package-with-python2 python-blinker))
+
+(define-public pelican
+  (package
+    (name "pelican")
+    (version "3.6.0")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append
+             "https://pypi.python.org/packages/source/p/pelican/pelican-"
+             version ".tar.gz"))
+       (sha256
+        (base32
+         "0lbkk902mqxpp452pp76n6qcjv6f99lq2zl204xmqyzcan9zr3ps"))))
+    (build-system python-build-system)
+    (native-inputs
+     `(("python-setuptools" ,python-setuptools)))
+    (propagated-inputs
+     `(("python-feedgenerator" ,python-feedgenerator)
+       ("python-jinja2" ,python-jinja2)
+       ("python-pygments" ,python-pygments)
+       ("python-docutils" ,python-docutils)
+       ("python-pytz" ,python-pytz)
+       ("python-blinker" ,python-blinker)
+       ("python-unidecode" ,python-unidecode)
+       ("python-six" ,python-six)
+       ("python-dateutil-2" ,python-dateutil-2)))
+    (home-page "http://getpelican.com/")
+    (arguments
+     `(;; XXX Requires a lot more packages to do unit tests :P
+       #:tests? #f
+       #:phases (modify-phases %standard-phases
+                  (add-before
+                   'install 'adjust-requires
+                   ;; Since feedgenerator is installed from git, it doesn't
+                   ;; conform to the version requirements.
+                   ;;
+                   ;; We *do have* "feedgenerator >= 1.6", but strip off the
+                   ;; version requirement so setuptools doesn't get confused.
+                   (lambda _
+                     (substitute* "setup.py"
+                       (("['\"]feedgenerator.*?['\"]")
+                        "'feedgenerator'")))))))
+    (synopsis "Python-based static site publishing system")
+    (description
+     "Pelican is a tool to generate a static blog from reStructuredText,
+Markdown input files, and more.  Pelican uses Jinja2 for templating
+and is very extensible.")
+    (license agpl3+)))
+
 (define-public python-scikit-learn
   (package
     (name "python-scikit-learn")
@@ -2147,7 +2313,7 @@ mining and data analysis.")
     (home-page "http://scikit-image.org/")
     (synopsis "Image processing in Python")
     (description
-     "scikit-image is a collection of algorithms for image processing.")
+     "Scikit-image is a collection of algorithms for image processing.")
     (license bsd-3)))
 
 (define-public python2-scikit-image
@@ -2318,7 +2484,7 @@ include_dirs = ~a/include
     (home-page "http://www.numpy.org/")
     (synopsis "Fundamental package for scientific computing with Python")
     (description "NumPy is the fundamental package for scientific computing
-with Python. It contains among other things: a powerful N-dimensional array
+with Python.  It contains among other things: a powerful N-dimensional array
 object, sophisticated (broadcasting) functions, tools for integrating C/C++
 and Fortran code, useful linear algebra, Fourier transform, and random number
 capabilities.")
@@ -2668,6 +2834,42 @@ those files.  It can also efficiently manipulate ranges of integers using set
 operators such as union, intersection, and difference.")
     (license asl2.0)))
 
+(define-public python-rpy2
+  (package
+    (name "python-rpy2")
+    (version "2.6.0")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "https://pypi.python.org/packages/source/r/rpy2"
+                           "/rpy2-" version ".tar.gz"))
+       (sha256
+        (base32
+         "1dp4l8hpv0jpf4crz4wis6in3lvwk86cr5zvpw410y4a07rrbqjk"))))
+    (build-system python-build-system)
+    (inputs
+     `(("python-six" ,python-six)
+       ("readline" ,readline)
+       ("icu4c" ,icu4c)
+       ("pcre" ,pcre)
+       ("r" ,r)))
+    (native-inputs
+     `(("python-setuptools" ,python-setuptools)))
+    (home-page "http://rpy.sourceforge.net/")
+    (synopsis "Python interface to the R language")
+    (description "rpy2 is a redesign and rewrite of rpy.  It is providing a
+low-level interface to R from Python, a proposed high-level interface,
+including wrappers to graphical libraries, as well as R-like structures and
+functions.")
+    (license gpl3+)))
+
+(define-public python2-rpy2
+  (let ((rpy2 (package-with-python2 python-rpy2)))
+    (package (inherit rpy2)
+      (native-inputs
+       `(("python2-singledispatch" ,python2-singledispatch)
+         ,@(package-native-inputs rpy2))))))
+
 (define-public python-scipy
   (package
     (name "python-scipy")
@@ -2891,14 +3093,27 @@ services for your Python modules and applications.")
      `(;; Used at runtime for pkg_resources
        ("python-setuptools" ,python-setuptools)))
     (arguments
-     `(#:phases (alist-cons-after
-                 'install 'check-installed
-                 (lambda _
-                   (begin
-                     (setenv "HOME" (getcwd))
-                     (and (zero? (system* "python" "selftest.py" "--installed"))
-                          (zero? (system* "python" "test-installed.py")))))
-                 (alist-delete 'check %standard-phases))))
+     `(#:phases (modify-phases %standard-phases
+                  (add-before
+                   'install 'disable-egg-compression
+                   (lambda _
+                     ;; Leave the .egg uncompressed since compressing it would
+                     ;; prevent the GC from identifying run-time dependencies.
+                     ;; See <http://bugs.gnu.org/20765>.
+                     (let ((port (open-file "setup.cfg" "a")))
+                       (display "\n[easy_install]\nzip_ok = 0\n"
+                                port)
+                       (close-port port)
+                       #t)))
+                  (add-after
+                   'install 'check-installed
+                   (lambda _
+                     (begin
+                       (setenv "HOME" (getcwd))
+                       (and (zero? (system* "python" "selftest.py"
+                                            "--installed"))
+                            (zero? (system* "python" "test-installed.py"))))))
+                 (delete 'check))))
     (home-page "https://pypi.python.org/pypi/Pillow")
     (synopsis "Fork of the Python Imaging Library")
     (description
@@ -3165,6 +3380,37 @@ Python language binding specification.")
 
 (define-public python2-drmaa
   (package-with-python2 python-drmaa))
+
+(define-public python-gridmap
+  (package
+    (name "python-gridmap")
+    (version "0.13.0")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append
+             "https://github.com/pygridtools/gridmap/archive/v"
+             version ".tar.gz"))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "1gzjg2k6f14i1msm2b0ax8d9ds1hvk6qd5nlaivg8m4cxqp4cp1x"))))
+    (build-system python-build-system)
+    (inputs
+     `(("python-psutil" ,python-psutil)
+       ("python-drmaa" ,python-drmaa)
+       ("python-pyzmq" ,python-pyzmq)))
+    (native-inputs
+     `(("python-setuptools" ,python-setuptools)))
+    (home-page "https://github.com/pygridtools/gridmap")
+    (synopsis "Create jobs on a cluster directly from Python")
+    (description
+      "Gridmap is a Python package to allow you to easily create jobs on the
+cluster directly from Python.  You can directly map Python functions onto the
+cluster without needing to write any wrapper code yourself.")
+    (license gpl3+)))
+
+(define-public python2-gridmap
+  (package-with-python2 python-gridmap))
 
 (define-public python-ipython
   (package

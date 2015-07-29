@@ -2,6 +2,7 @@
 ;;; Copyright © 2012, 2014, 2015 Ludovic Courtès <ludo@gnu.org>
 ;;; Copyright © 2014 David Thompson <dthompson2@worcester.edu>
 ;;; Copyright © 2015 Ricardo Wurmus <rekado@elephly.net>
+;;; Copyright © 2015 Alex Kost <alezost@gmail.com>
 ;;;
 ;;; This file is part of GNU Guix.
 ;;;
@@ -30,12 +31,13 @@
   #:use-module (gnu packages less)
   #:use-module (gnu packages lynx)
   #:use-module (gnu packages perl)
-  #:use-module (gnu packages pkg-config))
+  #:use-module (gnu packages pkg-config)
+  #:use-module (gnu packages linux))
 
 (define-public libpipeline
   (package
     (name "libpipeline")
-    (version "1.3.0")
+    (version "1.4.0")
     (source (origin
               (method url-fetch)
               (uri (string-append
@@ -43,7 +45,7 @@
                     version ".tar.gz"))
               (sha256
                (base32
-                "12d6ldcj7kv2nv832b23v97g7035d0ybq0ig7h0yr7xk9czd3z7i"))))
+                "1dlvp2mxlhg5zbj509kc60h7g39hpgwkzkpdf855cyzizgkmkivr"))))
     (build-system gnu-build-system)
     (home-page "http://libpipeline.nongnu.org/")
     (synopsis "C library for manipulating pipelines of subprocesses")
@@ -55,14 +57,14 @@ a flexible and convenient way.")
 (define-public man-db
   (package
     (name "man-db")
-    (version "2.6.6")
+    (version "2.7.1")
     (source (origin
               (method url-fetch)
               (uri (string-append "mirror://savannah/man-db/man-db-"
                                   version ".tar.xz"))
               (sha256
                (base32
-                "1hv6byj6sg6cp3jyf08gbmdm4pwhvd5hzmb94xl0w7prin6hzabx"))))
+                "03ly0hbpgjnag576rgccanaisn7f6422q5qxrj64vyzslc2651y4"))))
     (build-system gnu-build-system)
     (arguments
      '(#:phases
@@ -82,14 +84,20 @@ a flexible and convenient way.")
        (let ((groff (assoc-ref %build-inputs "groff"))
              (less  (assoc-ref %build-inputs "less"))
              (gzip  (assoc-ref %build-inputs "gzip"))
-             (bzip2  (assoc-ref %build-inputs "bzip2"))
-             (xz  (assoc-ref %build-inputs "xz")))
+             (bzip2 (assoc-ref %build-inputs "bzip2"))
+             (xz    (assoc-ref %build-inputs "xz"))
+             (util  (assoc-ref %build-inputs "util-linux")))
          ;; Invoke groff, less, gzip, bzip2, and xz directly from the store.
          (append (list "--disable-setuid" ;; Disable setuid man user.
                        (string-append "--with-pager=" less "/bin/less")
                        (string-append "--with-gzip=" gzip "/bin/gzip")
                        (string-append "--with-bzip2=" bzip2 "/bin/gzip")
-                       (string-append "--with-xz=" xz "/bin/xz"))
+                       (string-append "--with-xz=" xz "/bin/xz")
+                       (string-append "--with-col=" util "/bin/col")
+                       ;; Default value is "/usr/lib/tmpfiles.d" (not
+                       ;; prefix-sensitive).
+                       (string-append "--with-systemdtmpfilesdir="
+                                      %output "/lib/tmpfiles.d"))
                  (map (lambda (prog)
                         (string-append "--with-" prog "=" groff "/bin/" prog))
                       '("nroff" "eqn" "neqn" "tbl" "refer" "pic"))))
@@ -103,7 +111,8 @@ a flexible and convenient way.")
        ("gdbm" ,gdbm)
        ("groff" ,groff)
        ("less" ,less)
-       ("libpipeline" ,libpipeline)))
+       ("libpipeline" ,libpipeline)
+       ("util-linux" ,util-linux)))
     (native-search-paths
      (list (search-path-specification
             (variable "MANPATH")

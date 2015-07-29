@@ -58,14 +58,14 @@
 (define-public httpd
   (package
     (name "httpd")
-    (version "2.4.12")
+    (version "2.4.16")
     (source (origin
              (method url-fetch)
              (uri (string-append "mirror://apache/httpd/httpd-"
                                  version ".tar.bz2"))
              (sha256
               (base32
-               "1r7a63ka41vlswrqbb21vall6sc7svwgd497kb6dh8a6zvnkjvdd"))))
+               "0hrpy6gjwma0kba7p7m61vwh82qcnkf08123lrwpg257m93hnrmc"))))
     (build-system gnu-build-system)
     (inputs `(("apr" ,apr)
               ("apr-util" ,apr-util)
@@ -272,7 +272,13 @@ parse JSON formatted strings back into the C representation of JSON objects.")
              (file-name (string-append name "-" version ".tar.gz"))
              (sha256
               (base32
-               "0rl6s0vg5y1dhh9vfl1lqay3sxf69sxjh0czxrjmasn7ng91wwf3"))))
+               "0rl6s0vg5y1dhh9vfl1lqay3sxf69sxjh0czxrjmasn7ng91wwf3"))
+             (modules '((guix build utils)))
+             (snippet
+              ;; Building with GCC 4.8 with -Werror was fine, but 4.9.3
+              ;; complains in new ways, so turn of -Werror.
+              '(substitute* (find-files "." "^CMakeLists\\.txt$")
+                 (("-Werror") "")))))
     (build-system cmake-build-system)
     (home-page "https://github.com/miloyip/rapidjson")
     (synopsis "JSON parser/generator for C++ with both SAX/DOM style API")
@@ -320,20 +326,14 @@ for efficient socket-like bidirectional reliable communication channels.")
 (define-public libpsl
   (package
     (name "libpsl")
-    (version "0.6.0")
+    (version "0.7.1")
     (source (origin
               (method url-fetch)
               (uri (string-append "https://github.com/rockdaboot/libpsl/"
-                                  "archive/" version ".tar.gz"))
+                                  "archive/libpsl-" version ".tar.gz"))
               (sha256
                (base32
-                "10s7xxxx6pp4ydp3san69sa6q379ih3pv92fyi565ggmlw8igv7a"))
-              (file-name (string-append name "-" version ".tar.gz"))
-              (modules '((guix build utils)))
-              (snippet
-               ;; Believe it or not, the .pc is invalid.  Fix it.
-               '(substitute* "libpsl.pc.in"
-                  (("-llibpsl") "-lpsl")))))
+                "1k0klj668c9v0r4993vfs3kq773mzdz61vsigqw6v1mjcwnf1si3"))))
     (build-system gnu-build-system)
     (inputs `(("icu4c" ,icu4c)))
     ;; The release tarball lacks the generated files.
@@ -341,7 +341,8 @@ for efficient socket-like bidirectional reliable communication channels.")
                      ("automake" ,automake)
                      ("gettext"  ,gnu-gettext)
                      ("which"    ,which)
-                     ("libtool"  ,libtool)))
+                     ("libtool"  ,libtool)
+                     ("pkg-config" ,pkg-config)))
     (arguments
      `(#:phases (alist-cons-after
                  'unpack 'bootstrap
@@ -364,7 +365,7 @@ files, checks if a given domain is a public suffix, provides immediate cookie
 domain verification, finds the longest public part of a given domain, finds
 the shortest private part of a given domain, works with international
 domains (UTF-8 and IDNA2008 Punycode), is thread-safe, and handles IDNA2008
-UTS#46")
+UTS#46.")
     (license l:x11)))
 
 (define-public tidy
@@ -380,7 +381,8 @@ UTS#46")
                     (revision "2009-12-23")))
               (sha256
                (base32
-                "14dsnmirjcrvwsffqp3as70qr6bbfaig2fv3zvs5g7005jrsbvpb"))))
+                "14dsnmirjcrvwsffqp3as70qr6bbfaig2fv3zvs5g7005jrsbvpb"))
+              (patches (list (search-patch "tidy-CVE-2015-5522+5523.patch")))))
     (build-system gnu-build-system)
     (arguments
      '(#:phases (alist-cons-after
@@ -432,7 +434,7 @@ used to validate and fix HTML data.")
     ;; All of the below are used to generate the documentation
     ;; (Should they be propagated inputs of asciidoc ??)
     (native-inputs `(("asciidoc" ,asciidoc)
-                     ("libxml2" ,libxml2) 
+                     ("libxml2" ,libxml2)
                      ("docbook-xml" ,docbook-xml)
                      ("docbook-xsl" ,docbook-xsl)
                      ("libxslt" ,libxslt)))
@@ -978,7 +980,7 @@ for you.  It will work even with Catalyst debug logging turned off.")
     (home-page "http://search.cpan.org/dist/Catalyst-Plugin-Authentication")
     (synopsis "Infrastructure plugin for the Catalyst authentication framework")
     (description "The authentication plugin provides generic user support for
-Catalyst apps. It is the basis for both authentication (checking the user is
+Catalyst apps.  It is the basis for both authentication (checking the user is
 who they claim to be), and authorization (allowing the user to do what the
 system authorises them to do).")
     (license (package-license perl))))
@@ -1147,7 +1149,7 @@ cookie mechanism.")
        ("perl-path-class" ,perl-path-class)))
     (home-page
      "http://search.cpan.org/dist/Catalyst-Plugin-Session-Store-FastMmap")
-    (synopsis "FastMmap session storage backend.")
+    (synopsis "FastMmap session storage backend")
     (description "Catalyst::Plugin::Session::Store::FastMmap is a fast session
 storage plugin for Catalyst that uses an mmap'ed file to act as a shared
 memory interprocess cache.  It is based on Cache::FastMmap.")
@@ -1173,7 +1175,7 @@ memory interprocess cache.  It is based on Cache::FastMmap.")
     (home-page "http://search.cpan.org/dist/Catalyst-Plugin-StackTrace")
     (synopsis "Stack trace on the Catalyst debug screen")
     (description "This plugin enhances the standard Catalyst debug screen by
-including a stack trace of your appliation up to the point where the error
+including a stack trace of your application up to the point where the error
 occurred.  Each stack frame is displayed along with the package name, line
 number, file name, and code context surrounding the line number.")
     (license (package-license perl))))
@@ -1326,7 +1328,7 @@ replaced with the contents of the X-Request-Base header.")
     (synopsis "Download data in many formats")
     (description "The purpose of this module is to provide a method for
 downloading data into many supportable formats.  For example, downloading a
-table based report in a variety of formats (CSV, HTML, etc.). ")
+table based report in a variety of formats (CSV, HTML, etc.).")
     (license (package-license perl))))
 
 (define-public perl-catalyst-view-json
@@ -1566,13 +1568,13 @@ for files and urls.")
     (synopsis "Perl locale encoding determination")
     (description
      "The POSIX locale system is used to specify both the language
-conventions requested by the user and the preferred character set to consume
-and output.  The Encode::Locale module looks up the charset and encoding
-(called a CODESET in the locale jargon) and arranges for the Encode module
-to know this encoding under the name \"locale\".  It means bytes obtained
-from the environment can be converted to Unicode strings by calling
-Encode::encode(locale => $bytes) and converted back again with
-Encode::decode(locale => $string).")
+conventions requested by the user and the preferred character set to
+consume and output.  The Encode::Locale module looks up the charset and
+encoding (called a CODESET in the locale jargon) and arranges for the
+Encode module to know this encoding under the name \"locale\".  It means
+bytes obtained from the environment can be converted to Unicode strings
+by calling Encode::encode(locale => $bytes) and converted back again
+with Encode::decode(locale => $string).")
     (home-page "http://search.cpan.org/~gaas/Encode-Locale/")))
 
 (define-public perl-file-listing
@@ -2297,7 +2299,7 @@ or to multiple server ports.")
      `(("perl-io-socket-ssl" ,perl-io-socket-ssl)))
     (home-page "http://search.cpan.org/dist/Net-SMTP-SSL")
     (synopsis "SSL support for Net::SMTP")
-    (description "SSL support for Net::SMTP")
+    (description "SSL support for Net::SMTP.")
     (license (package-license perl))))
 
 (define-public perl-plack

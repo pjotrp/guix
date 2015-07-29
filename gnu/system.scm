@@ -68,6 +68,7 @@
             operating-system-host-name
             operating-system-hosts-file
             operating-system-kernel
+            operating-system-kernel-arguments
             operating-system-initrd
             operating-system-users
             operating-system-groups
@@ -102,7 +103,9 @@
   make-operating-system
   operating-system?
   (kernel operating-system-kernel                 ; package
-          (default linux-libre))
+          (default linux-libre-4.0))
+  (kernel-arguments operating-system-kernel-arguments
+                    (default '()))                ; list of gexps/strings
   (bootloader operating-system-bootloader)        ; <grub-configuration>
 
   (initrd operating-system-initrd                 ; (list fs) -> M derivation
@@ -225,10 +228,16 @@ as 'needed-for-boot'."
             (operating-system-mapped-devices os)))
 
   (define (requirements fs)
-    (map (lambda (md)
-           (symbol-append 'device-mapping-
-                          (string->symbol (mapped-device-target md))))
-         (device-mappings fs)))
+    ;; XXX: Fiddling with dmd service names is not nice.
+    (append (map (lambda (fs)
+                   (symbol-append 'file-system-
+                                  (string->symbol
+                                   (file-system-mount-point fs))))
+                 (file-system-dependencies fs))
+            (map (lambda (md)
+                   (symbol-append 'device-mapping-
+                                  (string->symbol (mapped-device-target md))))
+                 (device-mappings fs))))
 
   (sequence %store-monad
             (map (lambda (fs)
@@ -632,6 +641,7 @@ use 'plain-file' instead~%")
     (list #~(string-append #$shadow "/bin/passwd")
           #~(string-append #$shadow "/bin/su")
           #~(string-append #$inetutils "/bin/ping")
+          #~(string-append #$inetutils "/bin/ping6")
           #~(string-append #$sudo "/bin/sudo")
           #~(string-append #$fuse "/bin/fusermount"))))
 
@@ -866,11 +876,12 @@ listed in OS.  The C library expects to find it under
                            (label (kernel->grub-label kernel))
                            (linux kernel)
                            (linux-arguments
-                            (list (string-append "--root="
-                                                 (file-system-device root-fs))
-                                  #~(string-append "--system=" #$system)
-                                  #~(string-append "--load=" #$system
-                                                   "/boot")))
+                            (cons* (string-append "--root="
+                                                  (file-system-device root-fs))
+                                   #~(string-append "--system=" #$system)
+                                   #~(string-append "--load=" #$system
+                                                    "/boot")
+                                   (operating-system-kernel-arguments os)))
                            (initrd #~(string-append #$system "/initrd"))))))
     (grub-configuration-file (operating-system-bootloader os) entries
                              #:old-entries old-entries)))
@@ -887,6 +898,8 @@ this file is the reconstruction of GRUB menu entries for old configurations."
                                    (label #$label)
                                    (root-device #$(file-system-device root))
                                    (kernel #$(operating-system-kernel os))
+                                   (kernel-arguments
+                                    #$(operating-system-kernel-arguments os))
                                    (initrd #$initrd)))))
 
 (define (operating-system-derivation os)
