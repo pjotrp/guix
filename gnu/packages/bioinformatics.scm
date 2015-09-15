@@ -2654,9 +2654,28 @@ chr+pos+alt information in a database.")
         (sha256
           (base32
             "01k2fyjl5fpx4zn8g6gqiqvsg2j1fgixrs9p03vzxckynxdq3wmc"))))
-    ; (arguments
-    ;  '(#:tests? #f)) ; tests broken
     (build-system ruby-build-system)
+    (inputs
+     `(("coreutils" ,coreutils)  ; required for /bin/echo in tests
+       ("which" ,which)))        ; required for tests
+    (arguments
+     `(
+       #:phases
+        (alist-cons-before
+         'build 'replace-sh-commands
+         (lambda _
+           (substitute* '("test/functional/bio/test_command.rb")
+             (("/bin/sh") (which "sh")))
+           (substitute* '("test/functional/bio/test_command.rb")
+             (("/bin/ls") (which "ls")))
+           (substitute* '("test/functional/bio/test_command.rb")
+             (("which") (which "which")))
+           (substitute* '("test/functional/bio/test_command.rb",
+                          "test/data/command/echoarg2.sh")
+             (("/bin/echo") (which "echo"))))
+           ; (substitute* '("test/functional/bio/test_command.rb")
+           ;    (("which") (which "which"))))
+         %standard-phases)))
     (synopsis
       "BioRuby is a library for bioinformatics (biology + information science).")
     (description
