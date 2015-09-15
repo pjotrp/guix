@@ -2642,3 +2642,24 @@ position for indels.  Bio-locus allows users to store this chr+pos or
 chr+pos+alt information in a database.")
     (home-page "https://github.com/pjotrp/bio-locus")
     (license license:expat)))
+
+(define-public bioruby
+  (package
+    (name "bioruby")
+    (version "1.5.0")
+    (source
+      (origin
+        (method url-fetch)
+        (uri (rubygems-uri "bio" version))
+        (sha256
+          (base32
+            "01k2fyjl5fpx4zn8g6gqiqvsg2j1fgixrs9p03vzxckynxdq3wmc"))))
+    ; (arguments
+    ;  '(#:tests? #f)) ; tests broken
+    (build-system ruby-build-system)
+    (synopsis
+      "BioRuby is a library for bioinformatics (biology + information science).")
+    (description
+      "BioRuby comes with a comprehensive set of free development tools and libraries for bioinformatics and molecular biology, for the Ruby programming language. BioRuby has components for sequence analysis, pathway analysis, protein modelling and phylogenetic analysis; it supports many widely used data formats and provides easy access to databases, external programs and public web services, including BLAST, KEGG, GenBank, MEDLINE and GO.")
+    (home-page "http://bioruby.org/")
+    (license ruby)))
