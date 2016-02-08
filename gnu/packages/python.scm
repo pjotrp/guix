@@ -233,7 +233,8 @@
      `(("bzip2" ,bzip2)
        ("gdbm" ,gdbm)
        ("libffi" ,libffi)                         ; for ctypes
-       ("sqlite" ,sqlite)                         ; for sqlite extension
+       ;; ("sqlite" ,sqlite)                      ; for sqlite extension
+       ("sqlite-3.8.11.1" ,sqlite-3.8.11.1)       ; fixes 3.10.0 regression for python-sqlalchemy
        ("openssl" ,openssl)
        ("readline" ,readline)
        ("zlib" ,zlib)

@@ -388,6 +388,57 @@ widely deployed SQL database engine in the world.  The source code for SQLite
 is in the public domain.")
    (license public-domain)))
 
+(define-public sqlite-3.8.11.1
+  (package (inherit sqlite)
+    (version "3.8.11.1")
+   (source (origin
+            (method url-fetch)
+            ;; TODO: Download from sqlite.org once this bug :
+            ;; http://lists.gnu.org/archive/html/bug-guile/2013-01/msg00027.html
+            ;; has been fixed.
+            (uri (let ((numeric-version
+                        (match (string-split version #\.)
+                          ((first-digit other-digits ...)
+                           (string-append first-digit
+                                          (string-pad-right
+                                           (string-concatenate
+                                            (map (cut string-pad <> 2 #\0)
+                                                 other-digits))
+                                           6 #\0))))))
+                   (list
+                    (string-append
+                     "https://fossies.org/linux/misc/sqlite-autoconf-"
+                     numeric-version ".tar.gz")
+                    (string-append
+                     "http://distfiles.gentoo.org/distfiles/"
+                     "/sqlite-autoconf-" numeric-version ".tar.gz"))
+
+                   ;; XXX: As of 2015-09-08, SourceForge is squatting the URL
+                   ;; below, returning 200 and showing an advertising page.
+                   ;; (string-append
+                   ;;  "mirror://sourceforge/sqlite.mirror/SQLite%20" version
+                   ;;  "/sqlite-autoconf-" numeric-version ".tar.gz")
+                   ))
+            (sha256
+             (base32
+              "1dnkl4qr1dgaprbyf3jddfiynkhxnin86qabni47wjlc0fnb16gv"))))
+   (build-system gnu-build-system)
+   (inputs `(("readline" ,readline)))
+   (arguments
+    `(#:configure-flags
+      ;; Add -DSQLITE_SECURE_DELETE and -DSQLITE_ENABLE_UNLOCK_NOTIFY to
+      ;; CFLAGS.  GNU Icecat will refuse to use the system SQLite unless these
+      ;; options are enabled.
+      '("CFLAGS=-O2 -DSQLITE_SECURE_DELETE -DSQLITE_ENABLE_UNLOCK_NOTIFY")))
+   (home-page "http://www.sqlite.org/")
+   (synopsis "The SQLite database management system")
+   (description
+    "SQLite is a software library that implements a self-contained, serverless,
+zero-configuration, transactional SQL database engine.  SQLite is the most
+widely deployed SQL database engine in the world.  The source code for SQLite
+is in the public domain.")
+   (license public-domain)))
+
 (define-public tdb
   (package
     (name "tdb")
