@@ -3549,7 +3549,7 @@ routines such as routines for numerical integration and optimization.")
 (define-public python-sqlalchemy
   (package
     (name "python-sqlalchemy")
-    (version "0.9.7")
+    (version "1.0.11")
     (source
      (origin
       (method url-fetch)
@@ -3557,7 +3557,7 @@ routines such as routines for numerical integration and optimization.")
                           "SQLAlchemy/SQLAlchemy-" version ".tar.gz"))
       (sha256
        (base32
-        "059ayifj5l08v6vv56anhyibyllscn10dlzr2fcw68gz1hfjdzsz"))))
+        "18z81m3ypcgqmsqn61qpfm75b98z5fihx23hjw05a57shybp490b"))))
     (build-system python-build-system)
     (native-inputs
      `(("python-cython" ,python-cython) ;for c extensions
