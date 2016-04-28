@@ -1,5 +1,6 @@
 ;;; GNU Guix --- Functional package management for GNU
 ;;; Copyright © 2015 Andreas Enge <andreas@enge.fr>
+;;; Copyright © 2016 Efraim Flashner <efraim@flashner.co.il>
 ;;;
 ;;; This file is part of GNU Guix.
 ;;;
@@ -26,7 +27,7 @@
   #:use-module (gnu packages qt)
   #:use-module (gnu packages xorg))
 
-(define kde-frameworks-version "5.12.0")
+(define kde-frameworks-version "5.19.0")
 
 (define-public extra-cmake-modules
   (package
@@ -39,7 +40,8 @@
                             (version-major+minor version) "/"
                             name "-" version ".tar.xz"))
         (sha256
-          (base32 "14n77sn493m8kzr42wv13mdgxpnbx7x64bvw37ircrx8wmf4002i"))))
+         (base32
+          "1dl3hhbara7iswb5wsc5dp17ar3ljw5f0nrncl8vry9smaz2zl63"))))
     ;; The package looks for Qt5LinguistTools provided by Qt, but apparently
     ;; compiles without it; it might be needed for building the
     ;; documentation, which requires the additional Sphinx package.
@@ -63,18 +65,19 @@ common build settings used in software produced by the KDE community.")
                             (version-major+minor version) "/"
                             name "-" version ".tar.xz"))
         (sha256
-          (base32 "0fjxhf07r186cmp0mjvinrwxg4z90zlyvycqhy0n18fdp67szckl"))))
+         (base32
+          "115xs34r74j9zcsw69glnh8w59iyh764n3gniawwrk23c6yb8fch"))))
     (build-system cmake-build-system)
     (native-inputs
-      `(("pkg-config" ,pkg-config)
-        ("xorg-server" ,xorg-server))) ; for the tests
+     `(("pkg-config" ,pkg-config)
+       ("xorg-server" ,xorg-server))) ; for the tests
     (inputs
-      `(("extra-cmake-modules" ,extra-cmake-modules)
-        ("libxrender" ,libxrender)
-        ("qt" ,qt)
-        ("xcb-utils-keysyms" ,xcb-util-keysyms)))
+     `(("extra-cmake-modules" ,extra-cmake-modules)
+       ("libxrender" ,libxrender)
+       ("qt" ,qt)
+       ("xcb-utils-keysyms" ,xcb-util-keysyms)))
     (arguments
-      `(#:tests? #f)) ; FIXME: The first seven tests fail with "Exception".
+     `(#:tests? #f)) ; FIXME: The first seven tests fail with "Exception".
     (home-page "https://community.kde.org/Frameworks")
     (synopsis "KDE access to the windowing system")
     (description "KWindowSystem provides information about and allows
@@ -88,3 +91,27 @@ lower level classes for interaction with the X Windowing System.")
     ;; Some source files mention lgpl2.0+, but the included license is
     ;; the lgpl2.1. Some source files are under non-copyleft licenses.
     (license license:lgpl2.1+)))
+
+(define-public oxygen-icons
+  (package
+    (name "oxygen-icons")
+    (version kde-frameworks-version)
+    (source
+      (origin
+        (method url-fetch)
+        (uri (string-append "http://download.kde.org/stable/frameworks/"
+                            (version-major+minor version) "/"
+                            name "5-"version ".tar.xz"))
+        (sha256
+         (base32
+          "09vfwcyidj3bl0qr4sq78bkc69zp9x8dwp8bsay5y05q8591dkg0"))))
+    (build-system cmake-build-system)
+    (native-inputs
+     `(("pkg-config" ,pkg-config)))
+    (inputs
+     `(("extra-cmake-modules" ,extra-cmake-modules)
+       ("qt" ,qt)))
+    (home-page "https://community.kde.org/Frameworks")
+    (synopsis "Oxygen provides the standard icon theme for the KDE desktop.")
+    (description "Oxygen icon theme for the KDE desktop")
+    (license license:lgpl3+)))

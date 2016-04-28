@@ -26,6 +26,7 @@
   #:use-module (gnu packages perl)
   #:use-module (gnu packages readline)
   #:use-module (gnu packages flex)
+  #:use-module (gnu packages texlive)
   #:use-module (gnu packages xorg)
   #:use-module ((guix licenses) #:prefix license:)
   #:use-module (guix packages)
@@ -66,7 +67,7 @@ multiplication routines such as Toom–Cook and the FFT.")
 (define-public cm
   (package
    (name "cm")
-   (version "0.2.1")
+   (version "0.3")
    (source (origin
             (method url-fetch)
             (uri (string-append
@@ -74,7 +75,7 @@ multiplication routines such as Toom–Cook and the FFT.")
                   version ".tar.gz"))
             (sha256
              (base32
-              "1r5dx5qy0ka2sq26n9jll9iy4sjqg0jp5r3jnbjhpgxvmj8jbhq8"))))
+              "1nf5kr0nqmhbzrsrinky18z0ighjpsmb5cr8zyg8jf04bfbyrfmc"))))
    (build-system gnu-build-system)
    (propagated-inputs
      `(("mpfrcx" ,mpfrcx)
@@ -88,7 +89,7 @@ imaginary quadratic number fields and of elliptic curves with complex
 multiplication via floating point approximations.  It consists of libraries
 that can be called from within a C program and of executable command
 line applications.")
-   (license license:gpl2+)
+   (license license:gpl3+)
    (home-page "http://cm.multiprecision.org/")))
 
 (define-public fplll
@@ -125,23 +126,21 @@ solve the shortest vector problem.")
               (base32
                 "0c8l83a0gjq73r9hndsrzkypwxvnnm4pxkkzbg6jm95m80nzwh11"))))
    (build-system gnu-build-system)
+   (native-inputs `(("texlive" ,texlive-minimal)))
    (inputs `(("gmp" ,gmp)
              ("libx11" ,libx11)
              ("perl" ,perl)
              ("readline" ,readline)))
    (arguments
-    '(#:make-flags '("gp")
-      ;; FIXME: building the documentation requires tex; once this is
-      ;; available, replace "gp" by "all"
+    '(#:make-flags '("all")
       #:test-target "dobench"
-      #:phases
-      (alist-replace
-       'configure
-       (lambda* (#:key outputs #:allow-other-keys)
-         (let ((out (assoc-ref outputs "out")))
-           (zero?
-            (system* "./Configure" (string-append "--prefix=" out)))))
-       %standard-phases)))
+      #:phases (modify-phases %standard-phases
+                 (replace 'configure
+                          (lambda* (#:key outputs #:allow-other-keys)
+                           (let ((out (assoc-ref outputs "out")))
+                            (zero?
+                             (system* "./Configure"
+                                      (string-append "--prefix=" out)))))))))
    (synopsis "PARI/GP, a computer algebra system for number theory")
    (description
     "PARI/GP is a widely used computer algebra system designed for fast

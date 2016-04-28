@@ -29,7 +29,7 @@
   #:use-module (gnu system file-systems)          ; 'file-system', etc.
   #:use-module (gnu packages admin)
   #:use-module ((gnu packages linux)
-                #:select (eudev-with-blkid kbd e2fsprogs lvm2 fuse alsa-utils crda gpm))
+                #:select (eudev kbd e2fsprogs lvm2 fuse alsa-utils crda gpm))
   #:use-module ((gnu packages base)
                 #:select (canonical-package glibc))
   #:use-module (gnu packages package-management)
@@ -80,6 +80,7 @@
             nscd-service-type
             nscd-service
             syslog-service
+            %default-syslog.conf
 
             guix-configuration
             guix-configuration?
@@ -271,6 +272,7 @@ FILE-SYSTEM."
                       #:select (check-file-system canonicalize-device-spec))
                      ,@%default-modules))
           (imported-modules `((gnu build file-systems)
+                              (guix build bournish)
                               ,@%default-imported-modules))))
         '())))
 
@@ -731,9 +733,7 @@ the tty to run, among other things."
                                                   (string-append dir "/lib"))
                                                 (list #$@name-services))
                                            ":")))))
-           (stop #~(make-kill-destructor))
-
-           (respawn? #f)))))
+           (stop #~(make-kill-destructor))))))
 
 (define nscd-activation
   ;; Actions to take before starting nscd.
@@ -803,9 +803,12 @@ Service Switch}, for an example."
 "))
 
 (define* (syslog-service #:key (config-file %default-syslog.conf))
-  "Return a service that runs @code{syslogd}.
-If configuration file name @var{config-file} is not specified, use some
-reasonable default settings."
+  "Return a service that runs @command{syslogd}.  If configuration file
+name @var{config-file} is not specified, use some reasonable default
+settings.
+
+@xref{syslogd invocation,,, inetutils, GNU Inetutils}, for more
+information on the configuration file syntax."
   (service syslog-service-type config-file))
 
 
@@ -1165,7 +1168,7 @@ item of @var{packages}."
                               (udev udev)
                               (rules (append initial-rules rules)))))))))
 
-(define* (udev-service #:key (udev eudev-with-blkid) (rules '()))
+(define* (udev-service #:key (udev eudev) (rules '()))
   "Run @var{udev}, which populates the @file{/dev} directory dynamically.  Get
 extra rules from the packages listed in @var{rules}."
   (service udev-service-type

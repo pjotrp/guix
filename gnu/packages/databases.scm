@@ -8,6 +8,7 @@
 ;;; Copyright © 2015 Sou Bunnbu <iyzsong@gmail.com>
 ;;; Copyright © 2015 Leo Famulari <leo@famulari.name>
 ;;; Copyright © 2016 Efraim Flashner <efraim@flashner.co.il>
+;;; Copyright © 2016 Nils Gillmann <niasterisk@grrlz.net>
 ;;;
 ;;; This file is part of GNU Guix.
 ;;;
@@ -27,6 +28,7 @@
 (define-module (gnu packages databases)
   #:use-module (gnu packages)
   #:use-module (gnu packages bash)
+  #:use-module (gnu packages boost)
   #:use-module (gnu packages perl)
   #:use-module (gnu packages language)
   #:use-module (gnu packages linux)
@@ -131,16 +133,19 @@ SQL, Key/Value, XML/XQuery or Java Object storage for their data model.")
 (define-public mysql
   (package
     (name "mysql")
-    (version "5.6.25")
+    (version "5.7.11")
     (source (origin
              (method url-fetch)
-             (uri (string-append
-                   "http://dev.mysql.com/get/Downloads/MySQL-"
-                   (version-major+minor version) "/"
-                   name "-" version ".tar.gz"))
+             (uri (list (string-append
+                          "http://dev.mysql.com/get/Downloads/MySQL-"
+                          (version-major+minor version) "/"
+                          name "-" version ".tar.gz")
+                        (string-append
+                          "http://downloads.mysql.com/archives/get/file/"
+                          name "-" version ".tar.gz")))
              (sha256
               (base32
-               "1gbz5i1z3nswpq3q8f477vrx7g15j8n41pyb94k0jfnkhc5rq1qm"))))
+               "03hzd2ikabxhh5ch2yvml2nks2wpv3qbkqmx3520in6khypwgy2l"))))
     (build-system cmake-build-system)
     (arguments
      '(#:configure-flags
@@ -166,16 +171,11 @@ SQL, Key/Value, XML/XQuery or Java Object storage for their data model.")
          "-DINSTALL_SQLBENCHDIR=")
        #:phases (modify-phases %standard-phases
                   (add-after
-                   'install 'strip-extra-references
-                   (lambda* (#:key outputs #:allow-other-keys)
-                     ;; Strip references to GCC and other build-time
-                     ;; dependencies.
-                     (let ((out (assoc-ref outputs "out")))
-                       (for-each remove-store-references
-                                 (list (string-append out "/bin/mysqlbug")
-                                       (string-append
-                                        out "/share/mysql/docs/INFO_BIN")))
-                       #t)))
+                   'unpack 'patch-boost-version
+                   (lambda _
+                     ;; Mysql wants boost-1.59.0 specifically
+                     (substitute* "cmake/boost.cmake"
+                                  (("59") "60"))))
                   (add-after
                    'install 'remove-extra-binaries
                    (lambda* (#:key outputs #:allow-other-keys)
@@ -190,10 +190,11 @@ SQL, Key/Value, XML/XQuery or Java Object storage for their data model.")
      `(("bison" ,bison)
        ("perl" ,perl)))
     (inputs
-     `(("libaio" ,libaio)
+     `(("boost" ,boost)
+       ("libaio" ,libaio)
+       ("ncurses" ,ncurses)
        ("openssl" ,openssl)
-       ("zlib" ,zlib)
-       ("ncurses" ,ncurses)))
+       ("zlib" ,zlib)))
     (home-page "http://www.mysql.com/")
     (synopsis "Fast, easy to use, and popular database")
     (description
@@ -205,7 +206,7 @@ Language.")
 (define-public mariadb
   (package
     (name "mariadb")
-    (version "10.0.23")
+    (version "10.1.12")
     (source (origin
               (method url-fetch)
               (uri (string-append "https://downloads.mariadb.org/f/"
@@ -213,7 +214,7 @@ Language.")
                                   name "-" version ".tar.gz"))
               (sha256
                (base32
-                "0x52gfxk7zr84al83x62s4gh7mbngahy1svafdkbwd18i5lysvhm"))))
+                "1rzlc2ns84x540asbkgdp9562haxhlszfpdqh64i9pz4q1m4cpvr"))))
     (build-system cmake-build-system)
     (arguments
      '(#:configure-flags
@@ -273,15 +274,25 @@ as a drop-in replacement of MySQL.")
 (define-public postgresql
   (package
     (name "postgresql")
-    (version "9.3.8")
+    (version "9.5.1")
     (source (origin
               (method url-fetch)
               (uri (string-append "http://ftp.postgresql.org/pub/source/v"
                                   version "/postgresql-" version ".tar.bz2"))
               (sha256
                (base32
-                "1ymd98szvx12gyjdb9gr2hlkrb5bjx7mcshqq3xzdifzapkkqp5w"))))
+                "1ljvijaja5zy4i5b1450drbj8m3fcm3ly1zzaakp75x30s2rsc3b"))))
     (build-system gnu-build-system)
+    (arguments
+     `(#:phases
+       (modify-phases %standard-phases
+         (add-before 'configure 'patch-/bin/sh
+                     (lambda _
+                       ;; Refer to the actual shell.
+                       (substitute* '("src/bin/pg_ctl/pg_ctl.c"
+                                      "src/bin/psql/command.c")
+                         (("/bin/sh") (which "sh")))
+                       #t)))))
     (inputs
      `(("readline" ,readline)
        ("zlib" ,zlib)))
@@ -320,7 +331,7 @@ pictures, sounds, or video.")
     (native-inputs `(("emacs" ,emacs-no-x)
                      ("bc" ,bc)
                      ("bash:include" ,bash "include")
-                     ("libuuid", util-linux)))
+                     ("libuuid" ,util-linux)))
 
     ;; TODO: Add more optional inputs.
     (inputs `(("curl" ,curl)
@@ -873,3 +884,30 @@ supports many data structures including strings, hashes, lists, sets, sorted
 sets, bitmaps and hyperloglogs.")
     (home-page "http://redis.io/")
     (license bsd-3)))
+
+(define-public kyotocabinet
+  (package
+    (name "kyotocabinet")
+    (version "1.2.76")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "http://fallabs.com/kyotocabinet/pkg/"
+                                  name "-" version ".tar.gz"))
+              (sha256
+               (base32
+                "0g6js20x7vnpq4p8ghbw3mh9wpqksya9vwhzdx6dnlf354zjsal1"))))
+    (build-system gnu-build-system)
+    (arguments
+     `(#:configure-flags
+       (list
+        (string-append "LDFLAGS=-Wl,-rpath="
+                       (assoc-ref %outputs "out") "/lib"))))
+    (inputs `(("zlib" ,zlib)))
+    (home-page "http://fallabs.com/kyotocabinet/")
+    (synopsis
+     "Kyoto Cabinet is a modern implementation of the DBM database")
+    (description
+     "Kyoto Cabinet is a standalone file-based database that supports Hash
+and B+ Tree data storage models.  It is a fast key-value lightweight
+database and supports many programming languages.  It is a NoSQL database.")
+    (license gpl3+)))

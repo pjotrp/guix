@@ -202,7 +202,7 @@ interface, for the Transmission BitTorrent daemon.")
 (define-public aria2
   (package
     (name "aria2")
-    (version "1.19.3")
+    (version "1.21.0")
     (source (origin
               (method url-fetch)
               (uri (string-append "https://github.com/tatsuhiro-t/aria2/"
@@ -210,7 +210,7 @@ interface, for the Transmission BitTorrent daemon.")
                                   name "-" version ".tar.xz"))
               (sha256
                (base32
-                "1qwr4al6wlh5f558r0mr1hvdnf7d8ss6qwqn2361k99phk1cdg3a"))))
+                "1035rzx9y7qv4p7cv04f461343dxha7ikprch059x2fci8n5yp12"))))
     (build-system gnu-build-system)
     (arguments
      `(#:configure-flags '("--enable-libaria2")
@@ -225,7 +225,7 @@ interface, for the Transmission BitTorrent daemon.")
                (("CPPUNIT_TEST_SUITE_REGISTRATION\\(LpdMessageReceiverTest\\);" text)
                 (string-append "// " text))))))))
     (native-inputs
-     `(("pkg-config", pkg-config)))
+     `(("pkg-config" ,pkg-config)))
     (inputs
      `(("c-ares" ,c-ares)
        ("cppunit" ,cppunit) ; for the tests

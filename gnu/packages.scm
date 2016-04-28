@@ -1,7 +1,9 @@
 ;;; GNU Guix --- Functional package management for GNU
-;;; Copyright © 2012, 2013, 2014, 2015 Ludovic Courtès <ludo@gnu.org>
+;;; Copyright © 2012, 2013, 2014, 2015, 2016 Ludovic Courtès <ludo@gnu.org>
 ;;; Copyright © 2013 Mark H Weaver <mhw@netris.org>
 ;;; Copyright © 2014 Eric Bavier <bavier@member.fsf.org>
+;;; Copyright © 2016 Alex Kost <alezost@gmail.com>
+;;; Copyright © 2016 Mathieu Lirzin <mthl@gnu.org>
 ;;;
 ;;; This file is part of GNU Guix.
 ;;;
@@ -22,9 +24,9 @@
   #:use-module (guix packages)
   #:use-module (guix ui)
   #:use-module (guix utils)
-  #:use-module ((guix ftp-client) #:select (ftp-open))
-  #:use-module (guix gnu-maintenance)
-  #:use-module (guix upstream)
+  #:use-module ((guix build utils)
+                #:select ((package-name->name+version
+                           . hyphen-separated-name->name+version)))
   #:use-module (ice-9 ftw)
   #:use-module (ice-9 vlist)
   #:use-module (ice-9 match)
@@ -45,8 +47,6 @@
             find-packages-by-name
             find-best-packages-by-name
             find-newest-available-packages
-
-            check-package-freshness
 
             specification->package
             specification->package+output))
@@ -280,119 +280,63 @@ return its return value."
                     (lambda (k signum)
                       (handler signum))))
 
-(define-syntax-rule (waiting exp fmt rest ...)
-  "Display the given message while EXP is being evaluated."
-  (let* ((message (format #f fmt rest ...))
-         (blank   (make-string (string-length message) #\space)))
-    (display message (current-error-port))
-    (force-output (current-error-port))
-    (call-with-sigint-handler
-     (lambda ()
-       (dynamic-wind
-         (const #f)
-         (lambda () exp)
-         (lambda ()
-           ;; Clear the line.
-           (display #\cr (current-error-port))
-           (display blank (current-error-port))
-           (display #\cr (current-error-port))
-           (force-output (current-error-port)))))
-     (lambda (signum)
-       (format (current-error-port) "  interrupted by signal ~a~%" SIGINT)
-       #f))))
+
+;;;
+;;; Package specification.
+;;;
 
-(define ftp-open*
-  ;; Memoizing version of `ftp-open'.  The goal is to avoid initiating a new
-  ;; FTP connection for each package, esp. since most of them are to the same
-  ;; server.  This has a noticeable impact when doing "guix upgrade -u".
-  (memoize ftp-open))
+(define* (%find-package spec name version #:key fallback?)
+  (match (find-best-packages-by-name name version)
+    ((pkg . pkg*)
+     (unless (null? pkg*)
+       (warning (_ "ambiguous package specification `~a'~%") spec)
+       (warning (_ "choosing ~a from ~a~%")
+                (package-full-name pkg)
+                (location->string (package-location pkg))))
+     (when fallback?
+       (warning (_ "deprecated NAME-VERSION syntax; \
+use NAME@VERSION instead~%")))
+     pkg)
+    (_
+     (if version
+         (leave (_ "~A: package not found for version ~a~%") name version)
+         (if (not fallback?)
+             ;; XXX: Fallback to the older specification style with an hyphen
+             ;; between NAME and VERSION, for backward compatibility.
+             (call-with-values
+                 (lambda ()
+                   (hyphen-separated-name->name+version name))
+               (cut %find-package spec <> <> #:fallback? #t))
 
-(define (check-package-freshness package)
-  "Check whether PACKAGE has a newer version available upstream, and report
-it."
-  ;; TODO: Automatically inject the upstream version when desired.
-
-  (catch #t
-    (lambda ()
-      (when (false-if-exception (gnu-package? package))
-        (let ((name      (package-name package))
-              (full-name (package-full-name package)))
-          ;; XXX: This could work with non-GNU packages as well.  However,
-          ;; GNU's FTP-based updater would be too slow if it weren't memoized,
-          ;; and the generic interface in (guix upstream) doesn't support
-          ;; that.
-          (match (waiting (latest-release name
-                                          #:ftp-open ftp-open*
-                                          #:ftp-close (const #f))
-                          (_ "looking for the latest release of GNU ~a...") name)
-            ((? upstream-source? source)
-             (let ((latest-version
-                    (string-append (upstream-source-package source) "-"
-                                   (upstream-source-version source))))
-              (when (version>? latest-version full-name)
-                (format (current-error-port)
-                        (_ "~a: note: using ~a \
-but ~a is available upstream~%")
-                        (location->string (package-location package))
-                        full-name latest-version))))
-            (_ #t)))))
-    (lambda (key . args)
-      ;; Silently ignore networking errors rather than preventing
-      ;; installation.
-      (case key
-        ((getaddrinfo-error ftp-error) #f)
-        (else (apply throw key args))))))
+             ;; The fallback case didn't find anything either, so bail out.
+             (leave (_ "~A: unknown package~%") name))))))
 
 (define (specification->package spec)
   "Return a package matching SPEC.  SPEC may be a package name, or a package
-name followed by a hyphen and a version number.  If the version number is not
+name followed by an at-sign and a version number.  If the version number is not
 present, return the preferred newest version."
-  (let-values (((name version)
-                (package-name->name+version spec)))
-    (match (find-best-packages-by-name name version)
-      ((p)                                      ; one match
-       p)
-      ((p x ...)                                ; several matches
-       (warning (_ "ambiguous package specification `~a'~%") spec)
-       (warning (_ "choosing ~a from ~a~%")
-                (package-full-name p)
-                (location->string (package-location p)))
-       p)
-      (_                                        ; no matches
-       (if version
-           (leave (_ "~A: package not found for version ~a~%")
-                  name version)
-           (leave (_ "~A: unknown package~%") name))))))
+  (let-values (((name version) (package-name->name+version spec)))
+    (%find-package spec name version)))
 
 (define* (specification->package+output spec #:optional (output "out"))
   "Return the package and output specified by SPEC, or #f and #f; SPEC may
 optionally contain a version number and an output name, as in these examples:
 
   guile
-  guile-2.0.9
+  guile@2.0.9
   guile:debug
-  guile-2.0.9:debug
+  guile@2.0.9:debug
 
 If SPEC does not specify a version number, return the preferred newest
 version; if SPEC does not specify an output, return OUTPUT."
-  (define (ensure-output p sub-drv)
-    (if (member sub-drv (package-outputs p))
-        sub-drv
-        (leave (_ "package `~a' lacks output `~a'~%")
-               (package-full-name p)
-               sub-drv)))
-
   (let-values (((name version sub-drv)
                 (package-specification->name+version+output spec output)))
-    (match (find-best-packages-by-name name version)
-      ((p)
-       (values p (ensure-output p sub-drv)))
-      ((p p* ...)
-       (warning (_ "ambiguous package specification `~a'~%")
-                spec)
-       (warning (_ "choosing ~a from ~a~%")
-                (package-full-name p)
-                (location->string (package-location p)))
-       (values p (ensure-output p sub-drv)))
-      (()
-       (leave (_ "~a: package not found~%") spec)))))
+    (match (%find-package spec name version)
+      (#f
+       (values #f #f))
+      (package
+       (if (member sub-drv (package-outputs package))
+           (values package sub-drv)
+           (leave (_ "package `~a' lacks output `~a'~%")
+                  (package-full-name package)
+                  sub-drv))))))

@@ -33,6 +33,7 @@
   #:use-module (guix ui)
   #:use-module (guix utils)
   #:use-module (guix base64)
+  #:autoload   (guix hash) (sha256)
   #:use-module ((guix build utils)
                 #:select (mkdir-p dump-port))
   #:use-module ((guix build download)
@@ -221,11 +222,14 @@ or if EOF is reached."
 (module-define! (resolve-module '(web client))
                 'shutdown (const #f))
 
-(define* (http-fetch uri #:key port (text? #f) (buffered? #t))
+(define* (http-fetch uri #:key port (text? #f) (buffered? #t)
+                     keep-alive?)
   "Return an input port containing the data at URI, and the expected number of
 bytes available or #f.  If TEXT? is true, the data at URI is considered to be
 textual.  Follow any HTTP redirection.  When BUFFERED? is #f, return an
-unbuffered port, suitable for use in `filtered-port'.
+unbuffered port, suitable for use in `filtered-port'.  When KEEP-ALIVE? is
+true, send a 'Connection: keep-alive' HTTP header, in which case PORT may be
+reused for future HTTP requests.
 
 Raise an '&http-get-error' condition if downloading fails."
   (let loop ((uri (if (string? uri)
@@ -239,14 +243,16 @@ Raise an '&http-get-error' condition if downloading fails."
                                                      (base64-encode
                                                       (string->utf8 str))))))
                          (_ '()))))
-      (unless buffered?
+      (unless (or buffered? (not (file-port? port)))
         (setvbuf port _IONBF))
       (let*-values (((resp data)
                      ;; Try hard to use the API du jour to get an input port.
                      (if (guile-version>? "2.0.7")
                          (http-get uri #:streaming? #t #:port port
+                                   #:keep-alive? #t
                                    #:headers auth-header) ; 2.0.9+
                          (http-get* uri #:decode-body? text?        ; 2.0.7
+                                    #:keep-alive? #t
                                     #:port port #:headers auth-header)))
                     ((code)
                      (response-code resp)))
@@ -280,18 +286,23 @@ Raise an '&http-get-error' condition if downloading fails."
                       string->number*)
                36))))
 
+(define (cache-file-for-uri uri)
+  "Return the name of the file in the cache corresponding to URI."
+  (let ((digest (sha256 (string->utf8 (uri->string uri)))))
+    ;; Use the "URL" alphabet because it does not contain "/".
+    (string-append (cache-directory) "/http/"
+                   (base64-encode digest 0 (bytevector-length digest)
+                                  #f #f base64url-alphabet))))
+
 (define* (http-fetch/cached uri #:key (ttl (%http-cache-ttl)) text?)
   "Like 'http-fetch', return an input port, but cache its contents in
 ~/.cache/guix.  The cache remains valid for TTL seconds."
-  (let* ((directory (string-append (cache-directory) "/http/"
-                                   (uri-host uri)))
-         (file      (string-append directory "/"
-                                   (basename (uri-path uri)))))
+  (let ((file (cache-file-for-uri uri)))
     (define (update-cache)
       ;; Update the cache and return an input port.
       (let ((port (http-fetch uri #:text? text?)))
-        (mkdir-p directory)
-        (call-with-output-file file
+        (mkdir-p (dirname file))
+        (with-atomic-file-output file
           (cut dump-port port <>))
         (close-port port)
         (open-input-file file)))

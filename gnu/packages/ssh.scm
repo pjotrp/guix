@@ -1,7 +1,8 @@
 ;;; GNU Guix --- Functional package management for GNU
 ;;; Copyright © 2013, 2014 Andreas Enge <andreas@enge.fr>
 ;;; Copyright © 2014, 2015, 2016 Mark H Weaver <mhw@netris.org>
-;;; Copyright © 2015 Efraim Flashner <efraim@flashner.co.il>
+;;; Copyright © 2015, 2016 Efraim Flashner <efraim@flashner.co.il>
+;;; Copyright © 2016 Leo Famulari <leo@famulari.name>
 ;;;
 ;;; This file is part of GNU Guix.
 ;;;
@@ -44,15 +45,15 @@
 (define-public libssh
   (package
     (name "libssh")
-    (version "0.6.5")
+    (version "0.7.3")
     (source (origin
               (method url-fetch)
               (uri (string-append
-                    "https://red.libssh.org/attachments/download/121/libssh-"
+                    "https://red.libssh.org/attachments/download/195/libssh-"
                     version ".tar.xz"))
               (sha256
                (base32
-                "0b6wyx6bwbb8jpn8x4rhlrdiqwqrwrs0mxjmrnqykm9kw1ijgm8g"))))
+                "165g49i4kmm3bfsjm0n8hm21kadv79g9yjqyq09138jxanz4dvr6"))))
     (build-system cmake-build-system)
     (arguments
      '(#:configure-flags '("-DWITH_GCRYPT=ON")
@@ -60,7 +61,7 @@
        ;; TODO: Add 'CMockery' and '-DWITH_TESTING=ON' for the test suite.
        #:tests? #f))
     (inputs `(("zlib" ,zlib)
-              ("libgcrypt", libgcrypt)))
+              ("libgcrypt" ,libgcrypt)))
     (synopsis "SSH client library")
     (description
      "libssh is a C library implementing the SSHv2 and SSHv1 protocol for
@@ -70,29 +71,32 @@ remote applications.")
     (home-page "http://www.libssh.org")
     (license license:lgpl2.1+)))
 
-(define libssh-0.5                                ; kept private
+(define libssh-0.6 ; kept private for use in guile-ssh
   (package (inherit libssh)
-    (version "0.5.5")
+    (version "0.6.5")
     (source (origin
               (method url-fetch)
-              (uri (string-append "https://red.libssh.org/attachments/download/51/libssh-"
-                                  version ".tar.gz"))
+              (uri (string-append "https://red.libssh.org/attachments/"
+                                  "download/121/libssh-"
+                                  version ".tar.xz"))
               (sha256
                (base32
-                "17cfdff4hc0ijzrr15biq29fiabafz0bw621zlkbwbc1zh2hzpy0"))
-              (patches (list (search-patch "libssh-CVE-2014-0017.patch")))))))
+                "0b6wyx6bwbb8jpn8x4rhlrdiqwqrwrs0mxjmrnqykm9kw1ijgm8g"))
+              (patches (list
+                        (search-patch "libssh-0.6.5-CVE-2016-0739.patch")))))))
 
 (define-public libssh2
   (package
    (name "libssh2")
-   (version "1.4.3")
+   (version "1.7.0")
    (source (origin
             (method url-fetch)
             (uri (string-append
-                   "http://www.libssh2.org/download/libssh2-"
+                   "https://www.libssh2.org/download/libssh2-"
                    version ".tar.gz"))
-            (sha256 (base32
-                     "0vdr478dbhbdgnniqmirawjb7mrcxckn4slhhrijxnzrkmgziipa"))))
+            (sha256
+             (base32
+              "116mh112w48vv9k3f15ggp5kxw5sj4b88dzb5j69llsh7ba1ymp4"))))
    (build-system gnu-build-system)
    ;; The installed libssh2.pc file does not include paths to libgcrypt and
    ;; zlib libraries, so we need to propagate the inputs.
@@ -111,7 +115,7 @@ a server that supports the SSH-2 protocol.")
 (define-public openssh
   (package
    (name "openssh")
-   (version "7.1p2")
+   (version "7.2p2")
    (source (origin
             (method url-fetch)
             (uri (let ((tail (string-append name "-" version ".tar.gz")))
@@ -122,7 +126,7 @@ a server that supports the SSH-2 protocol.")
                          (string-append "http://ftp2.fr.openbsd.org/pub/OpenBSD/OpenSSH/portable/"
                                         tail))))
             (sha256 (base32
-                     "1gbbvszz74lkc7b2mqr3ccgpm65zj0k5h7a2ssh0c7pjvhjg0xfx"))))
+                     "132lh9aanb0wkisji1d6cmsxi520m8nh7c7i9wi6m1s3l38q29x7"))))
    (build-system gnu-build-system)
    (inputs `(("groff" ,groff)
              ("openssl" ,openssl)
@@ -235,7 +239,7 @@ Additionally, various channel-specific options can be negotiated.")
                      ("pkg-config" ,pkg-config)
                      ("which" ,which)))
     (inputs `(("guile" ,guile-2.0)
-              ("libssh" ,libssh)
+              ("libssh" ,libssh-0.6)
               ("libgcrypt" ,libgcrypt)))
     (synopsis "Guile bindings to libssh")
     (description
@@ -332,14 +336,15 @@ especially over Wi-Fi, cellular, and long-distance links.")
 (define-public dropbear
   (package
     (name "dropbear")
-    (version "2014.63")
+    (version "2016.72")
     (source (origin
               (method url-fetch)
               (uri (string-append
-                    "http://matt.ucc.asn.au/" name "/releases/"
+                    "https://matt.ucc.asn.au/" name "/releases/"
                     name "-" version ".tar.bz2"))
               (sha256
-               (base32 "1bjpbg2vi5f332q4bqxkidkjfxsqmnqvp4g1wyh8d99b8gg94nar"))))
+               (base32
+                "10fnlaf6rm537v3rml1gnd58d42plv2q5cp7svbrysap69npc8wk"))))
     (build-system gnu-build-system)
     (arguments  `(#:tests? #f)) ; There is no "make check" or anything similar
     (inputs `(("zlib" ,zlib)))

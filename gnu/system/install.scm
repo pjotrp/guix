@@ -111,7 +111,7 @@ manual."
                     ;; 'gunzip' is needed to decompress the doc.
                     (setenv "PATH" (string-append #$gzip "/bin"))
 
-                    (execl (string-append #$texinfo-4 "/bin/info") "info"
+                    (execl (string-append #$info-reader "/bin/info") "info"
                            "-d" "/run/current-system/profile/share/info"
                            "-f" (string-append #$guix "/share/info/guix.info")
                            "-n" "System Installation"))))
@@ -215,9 +215,11 @@ the user's target storage device rather than on the RAM disk."
                                               (string-append #$output "/"
                                                              target)))
                                  '(#$(file "bare-bones.tmpl")
-                                   #$(file "desktop.tmpl"))
+                                   #$(file "desktop.tmpl")
+                                   #$(file "lightweight-desktop.tmpl"))
                                  '("bare-bones.scm"
-                                   "desktop.scm"))
+                                   "desktop.scm"
+                                   "lightweight-desktop.scm"))
                        #t)
                    #:modules '((guix build utils))))
 
@@ -237,7 +239,12 @@ the user's target storage device rather than on the RAM disk."
   ;; Minimal in-memory caching policy for nscd.
   (list (nscd-cache (database 'hosts)
                     (positive-time-to-live (* 3600 12))
-                    (negative-time-to-live 20)
+
+                    ;; Do not cache lookup failures at all since they are
+                    ;; quite likely (for instance when someone tries to ping a
+                    ;; host before networking is functional.)
+                    (negative-time-to-live 0)
+
                     (persistent? #f)
                     (max-database-size (* 5 (expt 2 20)))))) ;5 MiB
 
@@ -333,17 +340,33 @@ Use Alt-F2 for documentation.
     (file-systems
      ;; Note: the disk image build code overrides this root file system with
      ;; the appropriate one.
-     (cons (file-system
-             (mount-point "/")
-             (device "gnu-disk-image")
-             (title 'label)
-             (type "ext4"))
-           %base-file-systems))
+     (cons* (file-system
+              (mount-point "/")
+              (device "gnu-disk-image")
+              (title 'label)
+              (type "ext4"))
+
+            ;; Make /tmp a tmpfs instead of keeping the unionfs.  This is
+            ;; because FUSE creates '.fuse_hiddenXYZ' files for each open file,
+            ;; and this confuses Guix's test suite, for instance.  See
+            ;; <http://bugs.gnu.org/23056>.
+            (file-system
+              (mount-point "/tmp")
+              (device "none")
+              (title 'device)
+              (type "tmpfs")
+              (check? #f))
+
+            ;; XXX: This should be %BASE-FILE-SYSTEMS but we don't need
+            ;; elogind's cgroup file systems.
+            (list %pseudo-terminal-file-system
+                  %shared-memory-file-system
+                  %immutable-store)))
 
     (users (list (user-account
                   (name "guest")
                   (group "users")
-                  (supplementary-groups '("wheel"))  ; allow use of sudo
+                  (supplementary-groups '("wheel")) ; allow use of sudo
                   (password "")
                   (comment "Guest of GNU")
                   (home-directory "/home/guest"))))
@@ -361,10 +384,10 @@ Use Alt-F2 for documentation.
      (base-pam-services #:allow-empty-passwords? #t))
 
     (packages (cons* (canonical-package glibc) ;for 'tzselect' & co.
-                     texinfo-4                 ;for the standalone Info reader
                      parted ddrescue
                      grub                  ;mostly so xrefs to its manual work
                      cryptsetup
+                     btrfs-progs
                      wireless-tools iw wpa-supplicant-minimal iproute
                      ;; XXX: We used to have GNU fdisk here, but as of version
                      ;; 2.0.0a, that pulls Guile 1.8, which takes unreasonable

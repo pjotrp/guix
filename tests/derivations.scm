@@ -18,6 +18,7 @@
 
 (define-module (test-derivations)
   #:use-module (guix derivations)
+  #:use-module (guix grafts)
   #:use-module (guix store)
   #:use-module (guix utils)
   #:use-module (guix hash)
@@ -43,6 +44,9 @@
 
 (define %store
   (open-connection-for-tests))
+
+;; Globally disable grafts because they can trigger early builds.
+(%graft? #f)
 
 (define (bootstrap-binary name)
   (let ((bin (search-bootstrap-binary name (%current-system))))
@@ -71,6 +75,7 @@
         (lambda (e1 e2)
           (string<? (car e1) (car e2)))))
 
+
 (test-begin "derivations")
 
 (test-assert "parse & export"
@@ -499,6 +504,25 @@
       (build-derivations %store (list drv))
       #f)))
 
+(test-assert "derivation #:disallowed-references, ok"
+  (let ((drv (derivation %store "disallowed" %bash
+                         '("-c" "echo hello > $out")
+                         #:inputs `((,%bash))
+                         #:disallowed-references '("out"))))
+    (build-derivations %store (list drv))))
+
+(test-assert "derivation #:disallowed-references, not ok"
+  (let* ((txt (add-text-to-store %store "foo" "Hello, world."))
+         (drv (derivation %store "disdisallowed" %bash
+                          `("-c" ,(string-append "echo " txt "> $out"))
+                          #:inputs `((,%bash) (,txt))
+                          #:disallowed-references (list txt))))
+    (guard (c ((nix-protocol-error? c)
+               ;; There's no specific error message to check for.
+               #t))
+      (build-derivations %store (list drv))
+      #f)))
+
 ;; Here we should get the value of $NIX_STATE_DIR that the daemon sees, which
 ;; is a unique value for each test process; this value is the same as the one
 ;; we see in the process executing this file since it is set by 'test-env'.
@@ -545,6 +569,15 @@
                 (file-exists? (string-append p "/good")))))))
 
 (test-skip (if (%guile-for-build) 0 8))
+
+(test-equal "build-expression->derivation and invalid module name"
+  '(file-search-error "guix/module/that/does/not/exist.scm")
+  (guard (c ((file-search-error? c)
+             (list 'file-search-error
+                   (file-search-error-file-name c))))
+    (build-expression->derivation %store "foo" #t
+                                  #:modules '((guix module that
+                                                    does not exist)))))
 
 (test-assert "build-expression->derivation and derivation-prerequisites"
   (let ((drv (build-expression->derivation %store "fail" #f)))
@@ -928,40 +961,6 @@
                                   (match y
                                     ((p2 . _)
                                      (string<? p1 p2)))))))))))))
-
-
-(test-assert "graft-derivation"
-  (let* ((build `(begin
-                   (mkdir %output)
-                   (chdir %output)
-                   (symlink %output "self")
-                   (call-with-output-file "text"
-                     (lambda (output)
-                       (format output "foo/~a/bar" ,%mkdir)))
-                   (symlink ,%bash "sh")))
-         (orig  (build-expression->derivation %store "graft" build
-                                              #:inputs `(("a" ,%bash)
-                                                         ("b" ,%mkdir))))
-         (one   (add-text-to-store %store "bash" "fake bash"))
-         (two   (build-expression->derivation %store "mkdir"
-                                              '(call-with-output-file %output
-                                                 (lambda (port)
-                                                   (display "fake mkdir" port)))))
-         (graft (graft-derivation %store "graft" orig
-                                  (list (graft
-                                          (origin %bash)
-                                          (replacement one))
-                                        (graft
-                                          (origin %mkdir)
-                                          (replacement two))))))
-    (and (build-derivations %store (list graft))
-         (let ((two   (derivation->output-path two))
-               (graft (derivation->output-path graft)))
-           (and (string=? (format #f "foo/~a/bar" two)
-                          (call-with-input-file (string-append graft "/text")
-                            get-string-all))
-                (string=? (readlink (string-append graft "/sh")) one)
-                (string=? (readlink (string-append graft "/self")) graft))))))
 
 (test-equal "map-derivation"
   "hello"

@@ -21,6 +21,7 @@
   #:use-module (guix config)
   #:use-module (guix ui)
   #:use-module (guix store)
+  #:use-module (guix grafts)
   #:use-module (guix gexp)
   #:use-module (guix derivations)
   #:use-module (guix packages)
@@ -127,7 +128,8 @@ TARGET, and register them."
 (define (install-grub* grub.cfg device target)
   "This is a variant of 'install-grub' with error handling, lifted in
 %STORE-MONAD"
-  (let* ((gc-root      (string-append %gc-roots-directory "/grub.cfg"))
+  (let* ((gc-root      (string-append target %gc-roots-directory
+                                      "/grub.cfg"))
          (temp-gc-root (string-append gc-root ".new"))
          (delete-file  (lift1 delete-file %store-monad))
          (make-symlink (lift2 switch-symlinks %store-monad))
@@ -211,6 +213,19 @@ the ownership of '~a' may be incorrect!~%")
       (lambda ()
         (environ env)))))
 
+(define-syntax-rule (save-load-path-excursion body ...)
+  "Save the current values of '%load-path' and '%load-compiled-path', run
+BODY..., and restore them."
+  (let ((path %load-path)
+        (cpath %load-compiled-path))
+    (dynamic-wind
+      (const #t)
+      (lambda ()
+        body ...)
+      (lambda ()
+        (set! %load-path path)
+        (set! %load-compiled-path cpath)))))
+
 (define-syntax-rule (warn-on-system-error body ...)
   (catch 'system-error
     (lambda ()
@@ -273,6 +288,9 @@ bring the system down."
            (info (_ "loading new services:~{ ~a~}...~%") to-load-names)
            (mlet %store-monad ((files (mapm %store-monad shepherd-service-file
                                             to-load)))
+             ;; Here we assume that FILES are exactly those that were computed
+             ;; as part of the derivation that built OS, which is normally the
+             ;; case.
              (load-services (map derivation->output-path files))
 
              (for-each start-service
@@ -299,7 +317,12 @@ it atomically, and then run OS's activation script."
        ;; Tell 'activate-current-system' what the new system is.
        (setenv "GUIX_NEW_SYSTEM" system)
 
-       (primitive-load (derivation->output-path script)))
+       ;; The activation script may modify '%load-path' & co., so protect
+       ;; against that.  This is necessary to ensure that
+       ;; 'upgrade-shepherd-services' gets to see the right modules when it
+       ;; computes derivations with (gexp->derivation #:modules …).
+       (save-load-path-excursion
+        (primitive-load (derivation->output-path script))))
 
       ;; Finally, try to update system services.
       (upgrade-shepherd-services os))))
@@ -459,6 +482,21 @@ PATTERN, a string.  When PATTERN is #f, display all the system generations."
     ((disk-image)
      (system-disk-image os #:disk-image-size image-size))))
 
+(define (maybe-suggest-running-guix-pull)
+  "Suggest running 'guix pull' if this has never been done before."
+  ;; The reason for this is that the 'guix' binding that we see here comes
+  ;; from either ~/.config/latest or, if it's missing, from the
+  ;; globally-installed Guix, which is necessarily older.  See
+  ;; <http://lists.gnu.org/archive/html/guix-devel/2014-08/msg00057.html> for
+  ;; a discussion.
+  (define latest
+    (string-append (config-directory) "/latest"))
+
+  (unless (file-exists? latest)
+    (warning (_ "~a not found: 'guix pull' was never run~%") latest)
+    (warning (_ "Consider running 'guix pull' before 'reconfigure'.~%"))
+    (warning (_ "Failing to do that may downgrade your system!~%"))))
+
 (define* (perform-action action os
                          #:key grub? dry-run? derivations-only?
                          use-substitutes? device target
@@ -474,6 +512,9 @@ When DERIVATIONS-ONLY? is true, print the derivation file name(s) without
 building anything."
   (define println
     (cut format #t "~a~%" <>))
+
+  (when (eq? action 'reconfigure)
+    (maybe-suggest-running-guix-pull))
 
   (mlet* %store-monad
       ((sys       (system-derivation-for-action os action
@@ -664,6 +705,7 @@ Build the operating system declared in FILE according to ACTION.\n"))
   ;; Alist of default option values.
   `((system . ,(%current-system))
     (substitutes? . #t)
+    (graft? . #t)
     (build-hook? . #t)
     (max-silent-time . 3600)
     (verbosity . 0)
@@ -791,6 +833,7 @@ argument list and OPTS is the option alist."
                                          parse-sub-command))
            (args     (option-arguments opts))
            (command  (assoc-ref opts 'action)))
-      (process-command command args opts))))
+      (parameterize ((%graft? (assoc-ref opts 'graft?)))
+        (process-command command args opts)))))
 
 ;;; system.scm ends here

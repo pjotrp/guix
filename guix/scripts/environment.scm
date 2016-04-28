@@ -1,6 +1,6 @@
 ;;; GNU Guix --- Functional package management for GNU
 ;;; Copyright © 2014, 2015 David Thompson <davet@gnu.org>
-;;; Copyright © 2015 Ludovic Courtès <ludo@gnu.org>
+;;; Copyright © 2015, 2016 Ludovic Courtès <ludo@gnu.org>
 ;;;
 ;;; This file is part of GNU Guix.
 ;;;
@@ -20,6 +20,7 @@
 (define-module (guix scripts environment)
   #:use-module (guix ui)
   #:use-module (guix store)
+  #:use-module (guix grafts)
   #:use-module (guix derivations)
   #:use-module (guix packages)
   #:use-module (guix profiles)
@@ -35,6 +36,9 @@
   #:use-module (gnu system file-systems)
   #:use-module (gnu packages)
   #:use-module (gnu packages bash)
+  #:use-module (gnu packages commencement)
+  #:use-module (gnu packages guile)
+  #:use-module ((gnu packages bootstrap) #:select (%bootstrap-guile))
   #:use-module (ice-9 format)
   #:use-module (ice-9 match)
   #:use-module (ice-9 rdelim)
@@ -45,19 +49,10 @@
   #:use-module (srfi srfi-98)
   #:export (guix-environment))
 
-(define (evaluate-input-search-paths inputs search-paths)
+(define (evaluate-profile-search-paths profile search-paths)
   "Evaluate SEARCH-PATHS, a list of search-path specifications, for the
-directories corresponding to INPUTS, a list of (DERIVATION) or (DERIVATION
-OUTPUT) tuples."
-  (let ((directories (map (match-lambda
-                            (((? derivation? drv))
-                             (derivation->output-path drv))
-                            (((? derivation? drv) output)
-                             (derivation->output-path drv output))
-                            (((? string? item))
-                             item))
-                          inputs)))
-    (evaluate-search-paths search-paths directories)))
+directories in PROFILE, the store path of a profile."
+  (evaluate-search-paths search-paths (list profile)))
 
 ;; Protect some env vars from purification.  Borrowed from nix-shell.
 (define %precious-variables
@@ -81,11 +76,10 @@ as 'HOME' and 'USER' are left untouched."
                       (((names . _) ...)
                        names)))))
 
-(define (create-environment inputs paths pure?)
-  "Set the environment variables specified by PATHS for all the packages
-within INPUTS.  When PURE? is #t, unset the variables in the current
-environment.  Otherwise, augment existing enviroment variables with additional
-search paths."
+(define (create-environment profile paths pure?)
+  "Set the environment variables specified by PATHS for PROFILE.  When PURE?
+is #t, unset the variables in the current environment.  Otherwise, augment
+existing enviroment variables with additional search paths."
   (when pure? (purify-environment))
   (for-each (match-lambda
               ((($ <search-path-specification> variable _ separator) . value)
@@ -94,15 +88,14 @@ search paths."
                          (if (and current (not pure?))
                              (string-append value separator current)
                              value)))))
-            (evaluate-input-search-paths inputs paths))
+            (evaluate-profile-search-paths profile paths))
 
   ;; Give users a way to know that they're in 'guix environment', so they can
   ;; adjust 'PS1' accordingly, for instance.
   (setenv "GUIX_ENVIRONMENT" "t"))
 
-(define (show-search-paths inputs search-paths pure?)
-  "Display SEARCH-PATHS applied to the packages specified by INPUTS, a list of
- (DERIVATION) or (DERIVATION OUTPUT) tuples.  When PURE? is #t, do not augment
+(define (show-search-paths profile search-paths pure?)
+  "Display SEARCH-PATHS applied to PROFILE.  When PURE? is #t, do not augment
 existing environment variables with additional search paths."
   (for-each (match-lambda
               ((search-path . value)
@@ -110,12 +103,37 @@ existing environment variables with additional search paths."
                 (search-path-definition search-path value
                                         #:kind (if pure? 'exact 'prefix)))
                (newline)))
-            (evaluate-input-search-paths inputs search-paths)))
+            (evaluate-profile-search-paths profile search-paths)))
+
+(define (strip-input-name input)
+  "Remove the name element from the tuple INPUT."
+  (match input
+    ((_ package) package)
+    ((_ package output)
+     (list package output))))
 
 (define (package+propagated-inputs package output)
   "Return the union of PACKAGE's OUTPUT and its transitive propagated inputs."
-  `((,(package-name package) ,package ,output)
-    ,@(package-transitive-propagated-inputs package)))
+  (cons (list package output)
+        (map strip-input-name
+             (package-transitive-propagated-inputs package))))
+
+(define (package-or-package+output? expr)
+  "Return #t if EXPR is a package or a 2 element list consisting of a package
+and an output string."
+  (match expr
+    ((or (? package?) ; bare package object
+         ((? package?) (? string?))) ; package+output tuple
+     #t)
+    (_ #f)))
+
+(define (package-environment-inputs package)
+  "Return a list of the transitive input packages for PACKAGE."
+  ;; Remove non-package inputs such as origin records.
+  (filter package-or-package+output?
+          (map strip-input-name
+               (bag-transitive-inputs
+                (package->bag package)))))
 
 (define (show-help)
   (display (_ "Usage: guix environment [OPTION]... PACKAGE... [-- COMMAND...]
@@ -159,9 +177,9 @@ COMMAND or an interactive shell in that environment.\n"))
   (show-bug-report-information))
 
 (define %default-options
-  ;; Default to opening a new shell.
   `((system . ,(%current-system))
     (substitutes? . #t)
+    (graft? . #t)
     (max-silent-time . 3600)
     (verbosity . 0)))
 
@@ -252,17 +270,19 @@ COMMAND or an interactive shell in that environment.\n"))
 (define (options/resolve-packages opts)
   "Return OPTS with package specification strings replaced by actual
 packages."
-  (define (package->outputs package mode)
-    (map (lambda (output)
-           (list mode package output))
-         (package-outputs package)))
+  (define (package->output package mode)
+    (match package
+      ((? package?)
+       (list mode package "out"))
+      (((? package? package) (? string? output))
+       (list mode package output))))
 
   (define (packages->outputs packages mode)
     (match packages
-      ((? package? package)
-       (package->outputs package mode))
-      (((? package? packages) ...)
-       (append-map (cut package->outputs <> mode) packages))))
+      ((? package-or-package+output? package) ; single package
+       (list (package->output package mode)))
+      (((? package-or-package+output?) ...) ; many packages
+       (map (cut package->output <> mode) packages))))
 
   (compact
    (append-map (match-lambda
@@ -280,22 +300,30 @@ packages."
                  (_ '(#f)))
                opts)))
 
-(define (build-inputs inputs opts)
-  "Build the derivations in INPUTS, a list of (DERIVATION) or (DERIVATION
-OUTPUT) tuples, using the build options in OPTS."
+(define* (build-environment derivations opts)
+  "Build the DERIVATIONS required by the environment using the build options
+in OPTS."
   (let ((substitutes? (assoc-ref opts 'substitutes?))
         (dry-run?     (assoc-ref opts 'dry-run?)))
-    (match inputs
-      (((derivations _ ...) ...)
-       (mbegin %store-monad
-         (show-what-to-build* derivations
-                              #:use-substitutes? substitutes?
-                              #:dry-run? dry-run?)
-         (if dry-run?
-             (return #f)
-             (mbegin %store-monad
-               (built-derivations derivations)
-               (return derivations))))))))
+    (mbegin %store-monad
+      (show-what-to-build* derivations
+                           #:use-substitutes? substitutes?
+                           #:dry-run? dry-run?)
+      (if dry-run?
+          (return #f)
+          (mbegin %store-monad
+            (set-build-options-from-command-line* opts)
+            (built-derivations derivations))))))
+
+(define (inputs->profile-derivation inputs system bootstrap?)
+  "Return the derivation for a profile consisting of INPUTS for SYSTEM.
+BOOTSTRAP?  specifies whether to use the bootstrap Guile to build the
+profile."
+  (profile-derivation (packages->manifest inputs)
+                      #:system system
+                      #:hooks (if bootstrap?
+                                  '()
+                                  %default-profile-hooks)))
 
 (define requisites* (store-lift requisites))
 
@@ -330,22 +358,36 @@ and suitable for 'exit'."
   "Run COMMAND in a new environment containing INPUTS, using the native search
 paths defined by the list PATHS.  When PURE?, pre-existing environment
 variables are cleared before setting the new ones."
+  ;; Properly handle SIGINT, so pressing C-c in an interactive terminal
+  ;; application works.
+  (sigaction SIGINT SIG_DFL)
   (create-environment inputs paths pure?)
-  (apply system* command))
+  (match command
+    ((program . args)
+     (apply execlp program program args))))
+
+(define (launch-environment/fork command inputs paths pure?)
+  "Run COMMAND in a new process with an environment containing INPUTS, using
+the native search paths defined by the list PATHS.  When PURE?, pre-existing
+environment variables are cleared before setting the new ones."
+  (match (primitive-fork)
+    (0 (launch-environment command inputs paths pure?))
+    (pid (match (waitpid pid)
+           ((_ . status) status)))))
 
 (define* (launch-environment/container #:key command bash user-mappings
-                                       inputs paths network?)
-  "Run COMMAND within a Linux container.  The environment features INPUTS, a
-list of derivations to be shared from the host system.  Environment variables
-are set according to PATHS, a list of native search paths.  The global shell
-is BASH, a file name for a GNU Bash binary in the store.  When NETWORK?,
-access to the host system network is permitted.  USER-MAPPINGS, a list of file
-system mappings, contains the user-specified host file systems to mount inside
-the container."
+                                       profile paths network?)
+  "Run COMMAND within a container that features the software in PROFILE.
+Environment variables are set according to PATHS, a list of native search
+paths.  The global shell is BASH, a file name for a GNU Bash binary in the
+store.  When NETWORK?, access to the host system network is permitted.
+USER-MAPPINGS, a list of file system mappings, contains the user-specified
+host file systems to mount inside the container."
   (mlet %store-monad ((reqs (inputs->requisites
-                             (cons (direct-store-path bash) inputs))))
+                             (list (direct-store-path bash) profile))))
     (return
      (let* ((cwd (getcwd))
+            (passwd (getpwuid (getuid)))
             ;; Bind-mount all requisite store items, user-specified mappings,
             ;; /bin/sh, the current working directory, and possibly networking
             ;; configuration files within the container.
@@ -383,6 +425,9 @@ the container."
             (mkdir-p "/bin")
             (symlink bash "/bin/sh")
 
+            ;; Set a reasonable default PS1.
+            (setenv "PS1" "\\u@\\h \\w [env]\\$ ")
+
             ;; Setup directory for temporary files.
             (mkdir-p "/tmp")
             (for-each (lambda (var)
@@ -390,16 +435,26 @@ the container."
                       ;; The same variables as in Nix's 'build.cc'.
                       '("TMPDIR" "TEMPDIR" "TMP" "TEMP"))
 
-            ;; From Nix build.cc:
-            ;;
-            ;; Set HOME to a non-existing path to prevent certain
-            ;; programs from using /etc/passwd (or NIS, or whatever)
-            ;; to locate the home directory (for example, wget looks
-            ;; for ~/.wgetrc).  I.e., these tools use /etc/passwd if
-            ;; HOME is not set, but they will just assume that the
-            ;; settings file they are looking for does not exist if
-            ;; HOME is set but points to some non-existing path.
-            (setenv "HOME" "/homeless-shelter")
+            ;; Create a dummy home directory under the same name as on the
+            ;; host.
+            (mkdir-p (passwd:dir passwd))
+            (setenv "HOME" (passwd:dir passwd))
+
+            ;; Create a dummy /etc/passwd to satisfy applications that demand
+            ;; to read it, such as 'git clone' over SSH, a valid use-case when
+            ;; sharing the host's network namespace.
+            (mkdir-p "/etc")
+            (call-with-output-file "/etc/passwd"
+              (lambda (port)
+                (display (string-join (list (passwd:name passwd)
+                                            "x" ; but there is no shadow
+                                            "0" "0" ; user is now root
+                                            (passwd:gecos passwd)
+                                            (passwd:dir passwd)
+                                            bash)
+                                      ":")
+                         port)
+                (newline port)))
 
             ;; For convenience, start in the user's current working
             ;; directory rather than the root directory.
@@ -408,7 +463,7 @@ the container."
             (primitive-exit/status
              ;; A container's environment is already purified, so no need to
              ;; request it be purified again.
-             (launch-environment command inputs paths #f)))
+             (launch-environment command profile paths #f)))
           #:namespaces (if network?
                            (delq 'net %namespaces) ; share host network
                            %namespaces)))))))
@@ -482,64 +537,67 @@ message if any test fails."
                                       (('ad-hoc-package package output)
                                        (package+propagated-inputs package
                                                                   output))
-                                      (('package package output)
-                                       (bag-transitive-inputs
-                                        (package->bag package))))
+                                      (('package package _)
+                                       (package-environment-inputs package)))
                                     packages)))
            (paths      (delete-duplicates
                         (cons $PATH
                               (append-map (match-lambda
-                                           ((label (? package? p) _ ...)
-                                            (package-native-search-paths p))
-                                           (_
-                                            '()))
+                                            ((or ((? package? p) _ ...)
+                                                 (? package? p))
+                                             (package-native-search-paths p))
+                                            (_ '()))
                                           inputs))
                         eq?)))
 
       (when container? (assert-container-features))
 
       (with-store store
-        (set-build-options-from-command-line store opts)
-        (run-with-store store
-          (mlet* %store-monad ((inputs (lower-inputs
-                                        (map (match-lambda
-                                              ((label item)
-                                               (list item))
-                                              ((label item output)
-                                               (list item output)))
-                                             inputs)
-                                        #:system system))
-                               ;; Containers need a Bourne shell at /bin/sh.
-                               (bash (environment-bash container?
-                                                       bootstrap?
-                                                       system)))
-            (mbegin %store-monad
+        ;; Use the bootstrap Guile when requested.
+        (parameterize ((%graft? (assoc-ref opts 'graft?))
+                       (%guile-for-build
+                        (package-derivation
+                         store
+                         (if bootstrap?
+                             %bootstrap-guile
+                             (canonical-package guile-2.0)))))
+          (set-build-options-from-command-line store opts)
+          (run-with-store store
+            ;; Containers need a Bourne shell at /bin/sh.
+            (mlet* %store-monad ((bash       (environment-bash container?
+                                                               bootstrap?
+                                                               system))
+                                 (prof-drv   (inputs->profile-derivation
+                                              inputs system bootstrap?))
+                                 (profile -> (derivation->output-path prof-drv)))
               ;; First build the inputs.  This is necessary even for
-              ;; --search-paths.  Additionally, we might need to build bash
-              ;; for a container.
-              (build-inputs (if (derivation? bash)
-                                `((,bash "out") ,@inputs)
-                                inputs)
-                            opts)
-              (cond
-               ((assoc-ref opts 'dry-run?)
-                (return #t))
-               ((assoc-ref opts 'search-paths)
-                (show-search-paths inputs paths pure?)
-                (return #t))
-               (container?
-                (let ((bash-binary
-                       (if bootstrap?
-                           bash
-                           (string-append (derivation->output-path bash)
-                                          "/bin/sh"))))
-                  (launch-environment/container #:command command
-                                                #:bash bash-binary
-                                                #:user-mappings mappings
-                                                #:inputs inputs
-                                                #:paths paths
-                                                #:network? network?)))
-               (else
-                (return
-                 (exit/status
-                  (launch-environment command inputs paths pure?))))))))))))
+              ;; --search-paths.  Additionally, we might need to build bash for
+              ;; a container.
+              (mbegin %store-monad
+                (build-environment (if (derivation? bash)
+                                       (list prof-drv bash)
+                                       (list prof-drv))
+                                   opts)
+                (cond
+                 ((assoc-ref opts 'dry-run?)
+                  (return #t))
+                 ((assoc-ref opts 'search-paths)
+                  (show-search-paths profile paths pure?)
+                  (return #t))
+                 (container?
+                  (let ((bash-binary
+                         (if bootstrap?
+                             bash
+                             (string-append (derivation->output-path bash)
+                                            "/bin/sh"))))
+                    (launch-environment/container #:command command
+                                                  #:bash bash-binary
+                                                  #:user-mappings mappings
+                                                  #:profile profile
+                                                  #:paths paths
+                                                  #:network? network?)))
+                 (else
+                  (return
+                   (exit/status
+                    (launch-environment/fork command profile
+                                             paths pure?)))))))))))))

@@ -7,6 +7,9 @@
 ;;; Copyright © 2015 Alex Sassmannshausen <alex.sassmannshausen@gmail.com>
 ;;; Copyright © 2015 Eric Dvorsak <eric@dvorsak.fr>
 ;;; Copyright © 2016 Leo Famulari <leo@famulari.name>
+;;; Copyright © 2016 Pjotr Prins <pjotr.guix@thebird.nl>
+;;; Copyright © 2016 Ricardo Wurmus <rekado@elephly.net>
+;;; Copyright © 2016 Efraim Flashner <efraim@flashner.co.il>
 ;;;
 ;;; This file is part of GNU Guix.
 ;;;
@@ -35,6 +38,7 @@
   #:use-module (guix build-system trivial)
   #:use-module (gnu packages)
   #:use-module (gnu packages base)
+  #:use-module (gnu packages cyrus-sasl)
   #:use-module (gnu packages ncurses)
   #:use-module (gnu packages readline)
   #:use-module (gnu packages linux)
@@ -48,6 +52,8 @@
   #:use-module (gnu packages bison)
   #:use-module (gnu packages flex)
   #:use-module (gnu packages glib)
+  #:use-module (gnu packages openldap)
+  #:use-module (gnu packages mcrypt)
   #:use-module (gnu packages pkg-config)
   #:use-module (gnu packages popt)
   #:use-module (gnu packages texinfo)
@@ -60,6 +66,37 @@
   #:use-module (gnu packages python)
   #:use-module (gnu packages man)
   #:use-module (gnu packages autotools))
+
+(define-public aide
+  (package
+    (name "aide")
+    (version "0.15.1")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "mirror://sourceforge/aide/aide/"
+                                  version "/aide-" version ".tar.gz"))
+              (sha256
+               (base32
+                "1vsrc0s62kv1i84skm6k6zy868gayjck268qwj38rpspc8c5qgih"))))
+    (build-system gnu-build-system)
+    (native-inputs
+     `(("bison" ,bison)
+       ("flex" ,flex)))
+    (inputs
+     `(("libgcrypt" ,libgcrypt)
+       ("libgpg-error" ,libgpg-error)
+       ("libmhash" ,libmhash)
+       ("zlib" ,zlib)))
+    (synopsis "File and directory integrity checker")
+    (description
+     "AIDE (Advanced Intrusion Detection Environment) is a file and directory
+integrity checker.  It creates a database from the regular expression rules
+that it finds from its configuration files.  Once this database is initialized
+it can be used to verify the integrity of the files.  It has several message
+digest algorithms that are used to check the integrity of files.  All of the
+usual file attributes can be checked for inconsistencies.")
+    (home-page "http://aide.sourceforge.net/")
+    (license license:gpl2+)))
 
 (define-public dmd
   ;; Deprecated.  Kept around "just in case."
@@ -81,8 +118,8 @@
                          ;; is used by a bunch of services.
                          (method url-fetch)
                          (uri (string-append
-                               "http://git.savannah.gnu.org/cgit/dmd.git/patch/"
-                               "?id=d1d0ff30b3ed2b86b0a3c9bc048d2a855f8e31e6"))
+                               "http://git.savannah.gnu.org/cgit/shepherd.git/"
+                               "patch?id=d1d0ff30b3ed2b86b0a3c9bc048d2a855f8e31e6"))
                          (sha256
                           (base32
                            "1lqymypixfiyb72d6bn24m06ry2q1ljnnv0qrc89pbb4z9azaa4d"))
@@ -104,14 +141,14 @@ interface and is based on GNU Guile.")
 (define-public shepherd
   (package
     (name "shepherd")
-    (version "0.3")
+    (version "0.3.1")
     (source (origin
               (method url-fetch)
               (uri (string-append "ftp://alpha.gnu.org/gnu/dmd/shepherd-"
                                   version ".tar.gz"))
               (sha256
                (base32
-                "13mcy2131h7hggqvxbfxyrnbz46aaiaq2agng3x3f789a78n4mnn"))))
+                "0f3yi3n4sl9myiay95yhv2a9an338qddfjrbv7da753ip66dkfz6"))))
     (build-system gnu-build-system)
     (arguments
      '(#:configure-flags '("--localstatedir=/var")))
@@ -152,14 +189,14 @@ graphs and can export its output to different formats.")
 (define-public htop
   (package
    (name "htop")
-   (version "1.0.3")
+   (version "2.0.1")
    (source (origin
             (method url-fetch)
             (uri (string-append "http://hisham.hm/htop/releases/"
                   version "/htop-" version ".tar.gz"))
             (sha256
              (base32
-              "0a8qbpsifzjwc4f45xfwm48jhm59g6q5hlib4bf7z13mgy95fp05"))))
+              "0rjn9ybqx5sav7z4gn18f1q6k23nmqyb6yydfgghzdznz9nn447l"))))
    (build-system gnu-build-system)
    (inputs
     `(("ncurses" ,ncurses)))
@@ -420,7 +457,7 @@ connection alive.")
          (bind-minor-version "9")
          (bind-patch-version "8")
          (bind-release-type "-P")
-         (bind-release-version "3")
+         (bind-release-version "4")
          (bind-version (string-append bind-major-version
                                       "."
                                       bind-minor-version
@@ -536,7 +573,7 @@ connection alive.")
                                         "/bind-" bind-version ".tar.gz"))
                     (sha256
                      (base32
-                      "01qa17479jghy90lb2j8b1bpg3ay6k6aaajpigyirwzsvyc9yj3a"))))
+                      "1wl9kl0630dc1qjrf7fnp8cscagfm5qgmisi0zhr1p6iwi9bil2y"))))
 
                 ;; When cross-compiling, we need the cross Coreutils and sed.
                 ;; Otherwise just use those from %FINAL-INPUTS.
@@ -1426,4 +1463,69 @@ frequently used directories by typing only a small pattern.")
 for CPU usage.  It listens to network traffic on a named interface and
 displays a table of current bandwidth usage by pairs of hosts.")
     (home-page "http://www.ex-parrot.com/~pdw/iftop/")
-    (license license:gpl3)))
+    (license license:gpl2+)))
+
+(define-public munge
+  (package
+    (name "munge")
+    (version "0.5.11")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "https://github.com/dun/munge/archive/munge-"
+                                  version ".tar.gz"))
+              (file-name (string-append name "-" version ".tar.gz"))
+              (sha256
+               (base32
+                "0njplyalwwqh7xr7xc7klc6x06mq0ak8w2pxh85w8n4hxkmqqnf5"))))
+    (inputs
+     `(("openssl" ,openssl)
+       ("libgcrypt" ,libgcrypt)))
+    (build-system gnu-build-system)
+    (home-page "http://dun.github.io/munge/")
+    (synopsis "Cluster computing authentication service")
+    (description
+     "Munge is an authentication service for creating and validating
+credentials.  It allows a process to authenticate the UID and GID of another
+local or remote process within a group of hosts having common users and
+groups.  These hosts form a security realm that is defined by a shared
+cryptographic key.  Clients within this security realm can create and validate
+credentials without the use of root privileges, reserved ports, or
+platform-specific methods.")
+    (license license:gpl3+)))
+
+(define-public audit
+  (package
+    (name "audit")
+    (version "2.4.5")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "http://people.redhat.com/sgrubb/audit/"
+                                  "audit-" version ".tar.gz"))
+              (sha256
+               (base32
+                "1q1q51dvxscbi4kbakmd4bn0xrvwwaiwvaya79925cbrqwzxsg77"))))
+    (build-system gnu-build-system)
+    (home-page "http://people.redhat.com/sgrubb/audit/")
+    (arguments
+     `(#:configure-flags (list "--with-python=no")
+       #:phases
+       (modify-phases %standard-phases
+         (add-after 'unpack 'fix-tests
+           (lambda _
+             ;; In the build environmnte /etc/passwd does not contain an entry
+             ;; for root/0, so we have to patch the expected value.
+             (substitute* "auparse/test/auparse_test.ref"
+               (("=0 \\(root\\)") "=0 (unknown(0))"))
+             #t)))))
+    (inputs
+     `(("openldap" ,openldap)
+       ("openssl" ,openssl)
+       ("sasl" ,cyrus-sasl)))
+    (synopsis "User-space component to the Linux auditing system")
+    (description
+     "auditd is the user-space component to the Linux auditing system, which
+allows logging of system calls made by user-land processes.  It's responsible
+for writing audit records to the disk.  Viewing the logs is done with the
+@code{ausearch} or @code{aureport} utilities.  Configuring the audit rules is
+done with the @code{auditctl} utility.")
+    (license license:gpl2+)))

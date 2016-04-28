@@ -150,7 +150,7 @@ affine transformation (scale, rotation, shear, etc.).")
    (version "1.0.6")
    (source (origin
              (method url-fetch)
-             (uri (string-append "http://www.freedesktop.org/software/"
+             (uri (string-append "https://www.freedesktop.org/software/"
                                  "harfbuzz/release/harfbuzz-"
                                  version ".tar.bz2"))
              (sha256
@@ -365,7 +365,7 @@ printing and other features typical of a source code editor.")
    (native-inputs
     `(("glib:bin" ,glib "bin") ; for glib-genmarshal, etc.
       ("intltool" ,intltool)
-      ("itstool", itstool)
+      ("itstool" ,itstool)
       ("gobject-introspection" ,gobject-introspection)
       ("pkg-config" ,pkg-config)
       ("vala" ,vala)
@@ -425,13 +425,42 @@ highlighting and other features typical of a source code editor.")
    (native-inputs
      `(("pkg-config" ,pkg-config)
        ("glib" ,glib "bin")                               ; glib-mkenums, etc.
-       ("gobject-introspection", gobject-introspection))) ; g-ir-compiler, etc.
+       ("gobject-introspection" ,gobject-introspection))) ; g-ir-compiler, etc.
    (synopsis "GNOME image loading and manipulation library")
    (description
     "GdkPixbuf is a library for image loading and manipulation developed
 in the GNOME project.")
    (license license:lgpl2.0+)
    (home-page "https://developer.gnome.org/gdk-pixbuf/")))
+
+;; To build gdk-pixbuf with SVG support, we need librsvg, and librsvg depends
+;; on gdk-pixbuf, so this new varibale.  Also, librsvg adds 90MiB to the
+;; closure size.
+(define-public gdk-pixbuf+svg
+  (package (inherit gdk-pixbuf)
+    (name "gdk-pixbuf+svg")
+    (inputs
+     `(("librsvg" ,librsvg)
+       ,@(package-inputs gdk-pixbuf)))
+    (arguments
+     '(#:configure-flags '("--with-x11")
+       #:tests? #f ; tested by the gdk-pixbuf package already
+       #:phases
+       (modify-phases %standard-phases
+         (add-after 'install 'register-svg-loader
+           (lambda* (#:key inputs outputs #:allow-other-keys)
+             (let* ((out     (assoc-ref outputs "out"))
+                    (librsvg (assoc-ref inputs "librsvg"))
+                    (loaders
+                     (append
+                      (find-files out "^libpixbufloader-.*\\.so$")
+                      (find-files librsvg "^libpixbufloader-.*\\.so$")))
+                    (gdk-pixbuf-query-loaders
+                     (string-append out "/bin/gdk-pixbuf-query-loaders")))
+               (zero? (apply system* `(,gdk-pixbuf-query-loaders
+                                       "--update-cache" ,@loaders)))))))))
+    (synopsis
+     "GNOME image loading and manipulation library, with SVG support")))
 
 (define-public at-spi2-core
   (package
@@ -1013,6 +1042,7 @@ extensive documentation, including API reference and a tutorial.")
      `(("pkg-config" ,pkg-config)))
     (inputs
      `(("python" ,python-2)
+       ("libglade" ,libglade)
        ("glib"   ,glib)))
     (propagated-inputs
      `(("python-pycairo"   ,python2-pycairo)     ;loaded at runtime
@@ -1107,7 +1137,25 @@ information.")
                 "12xmmcnq4138dlbhmqa45wqza8dky4lf856sp80h6xjwl2g7a85l"))))
     (build-system gnu-build-system)
     (arguments
-     `(#:configure-flags
+     `(#:phases
+       (modify-phases %standard-phases
+         (add-before
+             'configure 'fix-docbook
+           (lambda* (#:key inputs #:allow-other-keys)
+             (substitute* "configure"
+               ;; The configure check is overzealous about making sure that
+               ;; things are in place -- it uses the xmlcatalog tool to make
+               ;; sure that docbook-xsl is available, but this tool can only
+               ;; look in one catalog file, unlike the $XML_CATALOG_FILES
+               ;; variable that Guix defines.  Fool the test by using the
+               ;; docbook-xsl catalog explicitly and get on with life.
+               (("\"\\$XML_CATALOG_FILE\" \
+\"http://docbook.sourceforge.net/release/xsl/")
+                (string-append (car (find-files (assoc-ref inputs "docbook-xsl")
+                                                "^catalog.xml$"))
+                               " \"http://docbook.sourceforge.net/release/xsl/")))
+             #t)))
+       #:configure-flags
        (list (string-append "--with-xml-catalog="
                             (assoc-ref %build-inputs "docbook-xml")
                             "/xml/dtd/docbook/catalog.xml"))))

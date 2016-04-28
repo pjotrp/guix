@@ -13,6 +13,8 @@
 ;;; Copyright © 2015 David Thompson <davet@gnu.org>
 ;;; Copyright © 2015, 2016 Efraim Flashner <efraim@flashner.co.il>
 ;;; Copyright © 2016 Rene Saavedra <rennes@openmailbox.org>
+;;; Copyright © 2016 Jochem Raat <jchmrt@riseup.net>
+;;; Copyright © 2016 Rene Saavedra <rennes@openmailbox.org>
 ;;;
 ;;; This file is part of GNU Guix.
 ;;;
@@ -33,9 +35,11 @@
   #:use-module ((guix licenses) #:prefix license:)
   #:use-module (guix packages)
   #:use-module (guix download)
+  #:use-module (guix git-download)
   #:use-module (guix utils)
   #:use-module (guix build-system gnu)
   #:use-module (guix build-system glib-or-gtk)
+  #:use-module (guix build-system trivial)
   #:use-module (gnu packages)
   #:use-module (gnu packages admin)
   #:use-module (gnu packages autotools)
@@ -105,6 +109,7 @@
   #:use-module (gnu packages cdrom)
   #:use-module (gnu packages samba)
   #:use-module (gnu packages readline)
+  #:use-module (gnu packages fonts)
   #:use-module (srfi srfi-1))
 
 (define-public brasero
@@ -500,7 +505,7 @@ for settings shared by various components of the GNOME desktop.")
     (source
      (origin
       (method url-fetch)
-      (uri (string-append "http://tango.freedesktop.org/releases/icon-naming-utils-"
+      (uri (string-append "https://tango.freedesktop.org/releases/icon-naming-utils-"
                           version ".tar.bz2"))
       (sha256
        (base32
@@ -536,7 +541,7 @@ GNOME and KDE desktops to the icon names proposed in the specification.")
     (version "0.22")
     (source (origin
               (method url-fetch)
-              (uri (string-append "http://www.freedesktop.org/software/" name
+              (uri (string-append "https://www.freedesktop.org/software/" name
                                   "/releases/" name "-" version ".tar.xz"))
               (sha256
                (base32
@@ -608,7 +613,7 @@ update-desktop-database: updates the database containing a cache of MIME types
     (version "1.2")
     (source (origin
              (method url-fetch)
-             (uri (string-append "http://freedesktop.org/~hadess/"
+             (uri (string-append "https://freedesktop.org/~hadess/"
                                  "shared-mime-info-" version ".tar.xz"))
              (sha256
               (base32
@@ -640,7 +645,7 @@ database is translated at Transifex.")
     (source
      (origin
       (method url-fetch)
-      (uri (string-append "http://icon-theme.freedesktop.org/releases/"
+      (uri (string-append "https://icon-theme.freedesktop.org/releases/"
                           "hicolor-icon-theme-" version ".tar.gz"))
       (sha256
        (base32
@@ -939,7 +944,7 @@ library.")
     (inputs `(("glib" ,glib)))
     (native-inputs
      `(("pkg-config" ,pkg-config)
-       ("flex", flex)
+       ("flex" ,flex)
        ("bison" ,bison)))
     (home-page "http://freecode.com/projects/libidl")
     (synopsis "Create trees of CORBA Interface Definition Language files")
@@ -1461,7 +1466,7 @@ Hints specification (EWMH).")
     (license license:lgpl2.0+)))
 
 ;; stable version for gtk2, required by xfwm4.
-(define-public libwnck-1
+(define-public libwnck-2
   (package (inherit libwnck)
     (name "libwnck")
     (version "2.30.7")
@@ -1583,7 +1588,7 @@ Hints specification (EWMH).")
        ("libxml2" ,libxml2)
        ("libxslt" ,libxslt)
        ("python" ,python-2)
-       ("python2-pygobject", python2-pygobject-2)
+       ("python2-pygobject" ,python2-pygobject-2)
        ("zlib" ,zlib)))
     (native-inputs
      `(("intltool" ,intltool)
@@ -2259,7 +2264,7 @@ keyboard shortcuts.")
     (source
      (origin
        (method url-fetch)
-       (uri (string-append "http://www.freedesktop.org/software/colord/releases/"
+       (uri (string-append "https://www.freedesktop.org/software/colord/releases/"
                            name "-" version ".tar.xz"))
        (sha256
         (base32
@@ -2323,7 +2328,7 @@ output devices.")
     (source
      (origin
        (method url-fetch)
-       (uri (string-append "http://www.freedesktop.org/software/" name
+       (uri (string-append "https://www.freedesktop.org/software/" name
                            "/releases/" (version-major+minor version) "/"
                            name "-" version ".tar.xz"))
        (sha256
@@ -2403,7 +2408,7 @@ faster results and to avoid unnecessary server load.")
     (version "0.99.3")
     (source (origin
               (method url-fetch)
-              (uri (string-append "http://upower.freedesktop.org/releases/"
+              (uri (string-append "https://upower.freedesktop.org/releases/"
                                   name "-" version ".tar.xz"))
               (sha256
                (base32
@@ -3228,7 +3233,7 @@ supports playlists, song ratings, and any codecs installed through gstreamer.")
     `(("dconf" ,dconf)))
    (native-inputs
     `(("intltool" ,intltool)
-      ("itstool", itstool)
+      ("itstool" ,itstool)
       ("glib" ,glib "bin")
       ("gobject-introspection" ,gobject-introspection)
       ("pkg-config" ,pkg-config)
@@ -3379,7 +3384,7 @@ USB transfers with your high-level application or system daemon.")
 (define-public simple-scan
   (package
     (name "simple-scan")
-    (version "3.17.4")
+    (version "3.19.91")
     (source (origin
               (method url-fetch)
               (uri (string-append "https://launchpad.net/simple-scan/"
@@ -3388,7 +3393,7 @@ USB transfers with your high-level application or system daemon.")
                                   version ".tar.xz"))
               (sha256
                (base32
-                "1pslbv45g01g039zj2b01k08f763kkhzqw8wwz7yh27m7bjllnx6"))))
+                "1c5glf5vxgld41w4jxfqcv17q76qnh43fawpv33hncgh8d283xkf"))))
     (build-system glib-or-gtk-build-system)
     (inputs
      `(("gtk" ,gtk+)
@@ -3406,6 +3411,21 @@ USB transfers with your high-level application or system daemon.")
        ("pkg-config" ,pkg-config)
        ("vala" ,vala)
        ("xmllint" ,libxml2)))
+    (arguments
+     '(#:configure-flags '("--disable-packagekit")
+       #:phases
+       (modify-phases %standard-phases
+         (add-after 'unpack 'clean
+                    (lambda _
+                      ;; Remove a left-over reference to PackageKit.
+
+                      ;; https://bugs.launchpad.net/simple-scan/+bug/1462769
+
+                      ;; There are some generated C files erroneously
+                      ;; included in the source distribution, and this
+                      ;; one breaks the build by referring to a
+                      ;; non-existent header (packagekit.h)
+                      (delete-file "src/ui.c"))))))
     (home-page "https://launchpad.net/simple-scan")
     (synopsis "Document and image scanner")
     (description "Simple Scan is an easy-to-use application, designed to let
@@ -3776,6 +3796,46 @@ such as gzip tarballs.")
               (sha256
                (base32
                 "0icajbzqf5llvp5s8nafwkhwz6a6jmwn4hhs81bk0bpzawyq4zdk"))))
+    (arguments
+     '(#:phases
+       (modify-phases %standard-phases
+         (add-before 'configure 'pre-configure
+           (lambda* (#:key outputs #:allow-other-keys)
+             ;; Use elogind instead of systemd.
+             (substitute* "configure"
+               (("libsystemd-login >= 183 libsystemd-daemon libsystemd-journal")
+                "libelogind")
+               (("systemd") "elogind"))
+             (substitute* "gnome-session/gsm-systemd.c"
+               (("#include <systemd/sd-login.h>")
+                "#include <elogind/sd-login.h>"))
+             ;; Remove uses of the systemd journal.
+             (substitute* "gnome-session/main.c"
+               (("#ifdef HAVE_SYSTEMD") "#if 0"))
+             (substitute* "gnome-session/gsm-manager.c"
+               (("#ifdef HAVE_SYSTEMD") "#if 0"))
+             #t))
+         (add-after 'install 'wrap-gnome-session
+           (lambda* (#:key inputs outputs #:allow-other-keys)
+             ;; Make sure 'gnome-session' finds the 'gsettings' program.
+             (let ((glib (assoc-ref inputs "glib:bin"))
+                   (out  (assoc-ref outputs "out")))
+               (wrap-program (string-append out "/bin/gnome-session")
+                 `("PATH" ":" prefix (,(string-append glib "/bin"))))
+               #t)))
+         (add-after 'install 'disable-hardware-acceleration-check
+           (lambda* (#:key outputs #:allow-other-keys)
+             ;; Do not abort if hardware acceleration is missing.  This allows
+             ;; GNOME to run in QEMU and on low-end devices.
+             (let ((out (assoc-ref outputs "out")))
+               (substitute* (string-append out
+                                           "/share/xsessions/gnome.desktop")
+                 (("gnome-session")
+                  "gnome-session --disable-acceleration-check"))
+               #t))))
+
+       #:configure-flags
+       '("--enable-elogind")))
     (build-system glib-or-gtk-build-system)
     (native-inputs
      `(("glib:bin" ,glib "bin") ; for glib-compile-schemas, etc.
@@ -3783,7 +3843,8 @@ such as gzip tarballs.")
        ("intltool" ,intltool)
        ("xsltproc" ,libxslt)))
     (inputs
-     `(("gnome-desktop" ,gnome-desktop)
+     `(("elogind" ,elogind)
+       ("gnome-desktop" ,gnome-desktop)
        ("gsettings-desktop-schemas" ,gsettings-desktop-schemas)
        ("gtk+" ,gtk+)
        ("json-glib" ,json-glib)
@@ -3879,7 +3940,7 @@ javascript engine and the GObject introspection framework.")
      `(("dconf" ,dconf)))
     (native-inputs
      `(("intltool" ,intltool)
-       ("itstool", itstool)
+       ("itstool" ,itstool)
        ("gobject-introspection" ,gobject-introspection)
        ("pkg-config" ,pkg-config)))
     (inputs
@@ -4145,22 +4206,10 @@ Evolution (hence the name), but is now used by other packages as well.")
 users.")
     (license license:lgpl2.1)))
 
-(define %network-manager-glib-duplicate-test-patch
-  (origin
-    (method url-fetch)
-    (uri (string-append
-          "http://cgit.freedesktop.org/NetworkManager/NetworkManager/"
-          "patch/libnm-core/tests/test-general.c"
-          "?id=874f455d6d47c5a34ed9861a6710f4b78202e0d6"))
-    (file-name "network-manager-glib-duplicate-test.patch")
-    (sha256
-     (base32
-      "1v0vpxzf0p0b1y5lmq8w7rjndp216gr60nbf2dpdz5rgxx3p3ml6"))))
-
 (define-public network-manager
   (package
     (name "network-manager")
-    (version "1.0.6")
+    (version "1.0.10")
     (source (origin
               (method url-fetch)
               (uri (string-append "mirror://gnome/sources/NetworkManager/"
@@ -4168,8 +4217,7 @@ users.")
                                   "NetworkManager-" version ".tar.xz"))
               (sha256
                (base32
-                "1galh9j95yw33iv1jj8zz0h88ahx8gm5mqmam7zq9f730cj01siq"))
-              (patches (list %network-manager-glib-duplicate-test-patch))))
+                "1g4z2wg036n0njqp8fycrisj46l3yda6pl00l4rg9nfz862cxkqv"))))
     (build-system gnu-build-system)
     (outputs '("out"
                "doc")) ; 8 MiB of gtk-doc HTML
@@ -4192,6 +4240,19 @@ users.")
                (string-append "--with-dhclient=" dhclient)))
        #:phases
        (modify-phases %standard-phases
+         (add-before 'configure 'pre-configure
+           (lambda _
+             ;; These tests try to test aspects of network-manager's
+             ;; functionality within restricted containers, but they don't
+             ;; cope with being already in the Guix build jail as that jail
+             ;; lacks some features that they would like to proxy over (like
+             ;; a /sys mount).
+             (substitute* '("src/platform/Makefile.in")
+               (("SUBDIRS = tests") ""))
+             (substitute* '("src/tests/Makefile.in")
+               (("\ttest-route-manager-linux") "\t")
+               (("\ttest-route-manager-fake") "\t"))
+             #t))
          (add-before 'check 'pre-check
            (lambda _
              ;; For the missing /etc/machine-id.
@@ -4240,7 +4301,7 @@ services.")
 (define-public network-manager-applet
   (package
     (name "network-manager-applet")
-    (version "1.0.6")
+    (version "1.0.10")
     (source (origin
               (method url-fetch)
               (uri (string-append "mirror://gnome/sources/" name "/"
@@ -4248,7 +4309,7 @@ services.")
                                   name "-" version ".tar.xz"))
               (sha256
                (base32
-                "1yj0m6fb9v12d0di0rfmk3hx1vmygjkiff2c476rf792sbh56kax"))))
+                "1szh5jyijxm6z55irkp5s44pwah0nikss40mx7pvpk38m8zaqidh"))))
     (build-system glib-or-gtk-build-system)
     (arguments '(#:configure-flags '("--disable-migration")))
     (native-inputs
@@ -4632,13 +4693,17 @@ as SASL, TLS and VeNCrypt.  Additionally it supports encoding extensions.")
        ("gobject-introspection" ,gobject-introspection)
        ("intltool" ,intltool)
        ("pkg-config" ,pkg-config)))
-    (propagated-inputs
-     `(("gtk+" ,gtk+))) ; required by libnautilus-extension.pc
     (inputs
      ;; TODO: add gvfs support.
      `(("dconf" ,dconf)
        ("exempi" ,exempi)
        ("gnome-desktop" ,gnome-desktop)
+       ;; XXX: gtk+ is required by libnautilus-extension.pc
+       ;;
+       ;; Don't propagate it to reduces "profile pollution" of the 'gnome' meta
+       ;; package.  See:
+       ;; <http://lists.gnu.org/archive/html/guix-devel/2016-03/msg00283.html>.
+       ("gtk+" ,gtk+)
        ("libexif" ,libexif)
        ("libxml2" ,libxml2)))
     (synopsis "File manager for GNOME")
@@ -4648,3 +4713,247 @@ as SASL, TLS and VeNCrypt.  Additionally it supports encoding extensions.")
 design and behaviour, giving the user a simple way to navigate and manage its
 files.")
     (license license:gpl2+)))
+
+(define-public baobab
+  (package
+    (name "baobab")
+    (version "3.18.1")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append
+                    "mirror://gnome/sources/" name "/"
+                    (version-major+minor version) "/"
+                    name "-" version ".tar.xz"))
+              (sha256
+               (base32
+                "1da4bdkw5bnxansl1xr4lb03d6f4h0a0qaba8i3p3rwhcd191b62"))))
+    (build-system glib-or-gtk-build-system)
+    (native-inputs
+     `(("intltool" ,intltool)
+       ("pkg-config" ,pkg-config)
+       ("itstool" ,itstool)
+       ("xmllint" ,libxml2)
+       ("glib" ,glib "bin")
+       ("vala" ,vala)))
+    (inputs
+     `(("gtk+" ,gtk+)))
+    (synopsis "Disk usage analyzer for GNOME")
+    (description
+     "Baobab (Disk Usage Analyzer) is a graphical application to analyse disk
+usage in the GNOME desktop environment.  It can easily scan device volumes or
+a specific user-requested directory branch (local or remote).  Once the scan
+is complete it provides a graphical representation of each selected folder.")
+    (home-page "https://wiki.gnome.org/Apps/Baobab")
+    (license license:gpl2+)))
+
+(define-public gnome-backgrounds
+  (package
+    (name "gnome-backgrounds")
+    (version "3.18.0")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "mirror://gnome/sources/" name "/"
+                           (version-major+minor version) "/"
+                           name "-" version ".tar.xz"))
+       (sha256
+        (base32
+         "1fd7y8dh3iy88ayb8irgsihvssli6bzjzb5a6vfhi8qjbw70ymma"))))
+    (build-system glib-or-gtk-build-system)
+    (native-inputs
+     `(("intltool" ,intltool)))
+    (home-page "https://git.gnome.org/browse/gnome-backgrounds")
+    (synopsis "Background images for the GNOME desktop")
+    (description
+     "GNOME backgrounds package contains a collection of graphics files which
+can be used as backgrounds in the GNOME Desktop environment.  Additionally,
+the package creates the proper framework and directory structure so that you
+can add your own files to the collection.")
+    (license (list license:gpl2+
+                   license:cc-by2.0
+                   license:cc-by-sa2.0
+                   license:cc-by-sa3.0))))
+
+(define-public gnome-screenshot
+  (package
+    (name "gnome-screenshot")
+    (version "3.18.0")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "mirror://gnome/sources/" name "/"
+                           (version-major+minor version) "/"
+                           name "-" version ".tar.xz"))
+       (sha256
+        (base32
+         "0hc8m435q7yzvrw7jpi53kaxpmrd9w59sm7c5wibh2ng9azlv9pb"))))
+    (build-system glib-or-gtk-build-system)
+    (native-inputs
+     `(("glib:bin" ,glib "bin") ; for glib-compile-schemas, etc.
+       ("intltool" ,intltool)
+       ("pkg-config" ,pkg-config)))
+    (inputs
+     `(("gtk+" ,gtk+)
+       ("libcanberra" ,libcanberra)
+       ("libx11" ,libx11)
+       ("libxext" ,libxext)))
+    (home-page "https://git.gnome.org/browse/gnome-screenshot")
+    (synopsis "Take pictures of your screen")
+    (description
+     "GNOME Screenshot is a utility used for taking screenshots of the entire
+screen, a window or a user defined area of the screen, with optional
+beautifying border effects.")
+    (license license:gpl2+)))
+
+(define-public dconf-editor
+  (package
+    (name "dconf-editor")
+    (version "3.18.2")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "mirror://gnome/sources/" name "/"
+                           (version-major+minor version) "/"
+                           name "-" version ".tar.xz"))
+       (sha256
+        (base32
+         "0xdwi7g1xdmgrc9m8ii62fp2zj114gsfpmgazlnhrcmmfi97z5d7"))))
+    (build-system glib-or-gtk-build-system)
+    (native-inputs
+     `(("glib:bin" ,glib "bin") ; for glib-compile-schemas, gio-2.0.
+       ("intltool" ,intltool)
+       ("pkg-config" ,pkg-config)))
+    (inputs
+     `(("dconf" ,dconf)
+       ("gtk+" ,gtk+)
+       ("libxml2" ,libxml2)))
+    (home-page "https://git.gnome.org/browse/dconf-editor")
+    (synopsis "Graphical editor for GNOME's dconf configuration system")
+    (description
+     "Dconf-editor is a graphical tool for browsing and editing the dconf
+configuration system for GNOME.  It allows users to configure desktop
+software that do not provide their own configuration interface.")
+    (license license:lgpl2.1+)))
+
+(define-public gnome
+  (package
+    (name "gnome")
+    (version (package-version gnome-shell))
+    (source #f)
+    (build-system trivial-build-system)
+    (arguments '(#:builder (mkdir %output)))
+    (propagated-inputs
+     ;; TODO: Add more packages according to:
+     ;;       <https://packages.debian.org/jessie/gnome-core>.
+     `(("adwaita-icon-theme"        ,adwaita-icon-theme)
+       ("font-cantarell"            ,font-cantarell)
+       ("at-spi2-core"              ,at-spi2-core)
+       ("dbus"                      ,dbus)
+       ("dconf"                     ,dconf)
+       ("eog"                       ,eog)
+       ("epiphany"                  ,epiphany)
+       ("evince"                    ,evince)
+       ("gedit"                     ,gedit)
+       ("glib-networking"           ,glib-networking)
+       ("gnome-control-center"      ,gnome-control-center)
+       ("gnome-keyring"             ,gnome-keyring)
+       ("gnome-session"             ,gnome-session)
+       ("gnome-settings-daemon"     ,gnome-settings-daemon)
+       ("gnome-shell"               ,gnome-shell)
+       ("gnome-terminal"            ,gnome-terminal)
+       ("gnome-themes-standard"     ,gnome-themes-standard)
+       ("hicolor-icon-theme"        ,hicolor-icon-theme)
+       ("nautilus"                  ,nautilus)
+       ("pulseaudio"                ,pulseaudio)
+       ("shared-mime-info"          ,shared-mime-info)
+       ("totem"                     ,totem)
+       ("yelp"                      ,yelp)
+       ("zenity"                    ,zenity)))
+    (synopsis "The GNU desktop environment")
+    (home-page "https://www.gnome.org/")
+    (description
+     "GNOME is the graphical desktop for GNU.  It includes a wide variety of
+applications for browsing the web, editing text and images, creating
+documents and diagrams, playing media, scanning, and much more.")
+    (license license:gpl2+)))
+
+(define-public byzanz
+  ;; The last stable release of Byzanz was in 2011, but there have been many
+  ;; useful commits made to the Byzanz repository since then that it would be
+  ;; silly to use such an old release.
+  (let ((commit "f7af3a5bd252db84af8365bd059c117a7aa5c4af"))
+    (package
+      (name "byzanz")
+      (version (string-append "0.2-1." (string-take commit 7)))
+      (source (origin
+                (method git-fetch)
+                (uri (git-reference
+                      (url "git://git.gnome.org/byzanz")
+                      (commit commit)))
+                (sha256
+                 (base32
+                  "1l60myzxf9cav27v5v3nsijlslz9r7ip6d5kiirfpkf9k0w26hz3"))))
+      (build-system glib-or-gtk-build-system)
+      (arguments
+       '(#:phases
+         (modify-phases %standard-phases
+           (add-after 'unpack 'bootstrap
+             (lambda _
+               ;; The build system cleverly detects that we're not building from
+               ;; a release tarball and turns on -Werror for GCC.
+               ;; Unsurprisingly, there is a warning during compilation that
+               ;; causes the build to fail unnecessarily, so we remove the flag.
+               (substitute* '("configure.ac")
+                 (("-Werror") ""))
+               ;; The autogen.sh script in gnome-common will run ./configure
+               ;; by default, which is problematic because source shebangs
+               ;; have not yet been patched.
+               (setenv "NOCONFIGURE" "t")
+               (zero? (system* "sh" "autogen.sh")))))))
+      (native-inputs
+       `(("autoconf" ,autoconf)
+         ("automake" ,automake)
+         ("gnome-common" ,gnome-common)
+         ("intltool" ,intltool)
+         ("libtool" ,libtool)
+         ("pkg-config" ,pkg-config)
+         ("which" ,which)))
+      (inputs
+       `(("glib" ,glib)
+         ("gstreamer" ,gstreamer)
+         ("gst-plugins-base" ,gst-plugins-base)
+         ("gtk+" ,gtk+)))
+      (synopsis "Desktop recording program")
+      (description "Byzanz is a simple desktop recording program with a
+command-line interface.  It can record part or all of an X display for a
+specified duration and save it as a GIF encoded animated image file.")
+      (home-page "https://git.gnome.org/browse/byzanz")
+      (license license:gpl2+))))
+
+(define-public libzapojit
+  (package
+    (name "libzapojit")
+    (version "0.0.3")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "mirror://gnome/sources/" name "/"
+                                  (version-major+minor version) "/"
+                                  name "-" version ".tar.xz"))
+              (sha256
+               (base32
+                "0zn3s7ryjc3k1abj4k55dr2na844l451nrg9s6cvnnhh569zj99x"))))
+    (build-system gnu-build-system)
+    (native-inputs
+     `(("gobject-introspection" ,gobject-introspection)
+       ("intltool" ,intltool)
+       ("pkg-config" ,pkg-config)))
+    (inputs
+     `(("gnome-online-accounts" ,gnome-online-accounts)
+       ("json-glib" ,json-glib)
+       ("rest" ,rest)))
+    (home-page "https://wiki.gnome.org/Projects/Zapojit")
+    (synopsis "Library for accessing SkyDrive and Hotmail")
+    (description
+     "Libzapojit is a GLib-based library for accessing online service APIs of
+Microsoft SkyDrive and Hotmail, using their REST protocols.")
+    (license license:lgpl2.1+)))

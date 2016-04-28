@@ -42,6 +42,7 @@ GNU_SYSTEM_MODULES =				\
   gnu/packages/attr.scm				\
   gnu/packages/audacity.scm			\
   gnu/packages/audio.scm			\
+  gnu/packages/augeas.scm			\
   gnu/packages/autogen.scm			\
   gnu/packages/autotools.scm			\
   gnu/packages/avahi.scm			\
@@ -165,13 +166,13 @@ GNU_SYSTEM_MODULES =				\
   gnu/packages/indent.scm			\
   gnu/packages/inklingreader.scm		\
   gnu/packages/inkscape.scm			\
-  gnu/packages/irssi.scm			\
+  gnu/packages/irc.scm  			\
   gnu/packages/iso-codes.scm			\
   gnu/packages/java.scm				\
   gnu/packages/jemalloc.scm			\
   gnu/packages/jrnl.scm				\
   gnu/packages/julia.scm			\
-  gnu/packages/kde.scm				\
+  gnu/packages/kde.scm              \
   gnu/packages/kde-frameworks.scm		\
   gnu/packages/key-mon.scm			\
   gnu/packages/kodi.scm				\
@@ -215,6 +216,7 @@ GNU_SYSTEM_MODULES =				\
   gnu/packages/mail.scm				\
   gnu/packages/make-bootstrap.scm		\
   gnu/packages/markdown.scm			\
+  gnu/packages/mate.scm             \
   gnu/packages/maths.scm			\
   gnu/packages/mc.scm				\
   gnu/packages/mcrypt.scm			\
@@ -335,7 +337,6 @@ GNU_SYSTEM_MODULES =				\
   gnu/packages/wdiff.scm			\
   gnu/packages/web.scm				\
   gnu/packages/webkit.scm			\
-  gnu/packages/weechat.scm			\
   gnu/packages/wget.scm				\
   gnu/packages/wicd.scm				\
   gnu/packages/wine.scm				\
@@ -425,7 +426,6 @@ dist_patch_DATA =						\
   gnu/packages/patches/bigloo-gc-shebangs.patch			\
   gnu/packages/patches/binutils-ld-new-dtags.patch		\
   gnu/packages/patches/binutils-loongson-workaround.patch	\
-  gnu/packages/patches/bitlbee-configure-doc-fix.patch		\
   gnu/packages/patches/byobu-writable-status.patch		\
   gnu/packages/patches/calibre-drop-unrar.patch			\
   gnu/packages/patches/calibre-no-updates-dialog.patch		\
@@ -435,6 +435,7 @@ dist_patch_DATA =						\
   gnu/packages/patches/clucene-pkgconfig.patch			\
   gnu/packages/patches/cmake-fix-tests.patch			\
   gnu/packages/patches/cpio-gets-undeclared.patch		\
+  gnu/packages/patches/cpio-CVE-2016-2037.patch			\
   gnu/packages/patches/cpufrequtils-fix-aclocal.patch		\
   gnu/packages/patches/crda-optional-gcrypt.patch		\
   gnu/packages/patches/crossmap-allow-system-pysam.patch	\
@@ -453,6 +454,7 @@ dist_patch_DATA =						\
   gnu/packages/patches/duplicity-piped-password.patch		\
   gnu/packages/patches/duplicity-test_selection-tmp.patch	\
   gnu/packages/patches/elfutils-tests-ptrace.patch		\
+  gnu/packages/patches/einstein-build.patch			\
   gnu/packages/patches/emacs-constants-lisp-like.patch		\
   gnu/packages/patches/emacs-exec-path.patch			\
   gnu/packages/patches/emacs-scheme-complete-scheme-r5rs-info.patch	\
@@ -482,13 +484,13 @@ dist_patch_DATA =						\
   gnu/packages/patches/geoclue-config.patch			\
   gnu/packages/patches/ghostscript-CVE-2015-3228.patch		\
   gnu/packages/patches/ghostscript-runpath.patch		\
-  gnu/packages/patches/gitolite-openssh-6.8-compat.patch	\
   gnu/packages/patches/glib-networking-ssl-cert-file.patch	\
   gnu/packages/patches/glib-tests-desktop.patch			\
   gnu/packages/patches/glib-tests-homedir.patch			\
   gnu/packages/patches/glib-tests-prlimit.patch			\
   gnu/packages/patches/glib-tests-timer.patch			\
   gnu/packages/patches/glib-tests-gapplication.patch		\
+  gnu/packages/patches/glibc-CVE-2015-7547.patch		\
   gnu/packages/patches/glibc-bootstrap-system.patch		\
   gnu/packages/patches/glibc-hurd-extern-inline.patch		\
   gnu/packages/patches/glibc-ldd-x86_64.patch			\
@@ -499,6 +501,7 @@ dist_patch_DATA =						\
   gnu/packages/patches/gmp-arm-asm-nothumb.patch		\
   gnu/packages/patches/gmp-faulty-test.patch			\
   gnu/packages/patches/gnucash-price-quotes-perl.patch		\
+  gnu/packages/patches/gnupg-simple-query-ignore-status-messages.patch \
   gnu/packages/patches/gobject-introspection-absolute-shlib-path.patch \
   gnu/packages/patches/gobject-introspection-cc.patch		\
   gnu/packages/patches/gobject-introspection-girepository.patch	\
@@ -521,10 +524,30 @@ dist_patch_DATA =						\
   gnu/packages/patches/hydra-automake-1.15.patch		\
   gnu/packages/patches/hydra-disable-darcs-test.patch		\
   gnu/packages/patches/icecat-avoid-bundled-includes.patch	\
+  gnu/packages/patches/icecat-update-graphite2.patch		\
+  gnu/packages/patches/icecat-update-graphite2-pt2.patch	\
   gnu/packages/patches/icecat-re-enable-DHE-cipher-suites.patch	\
+  gnu/packages/patches/icecat-CVE-2015-4477.patch		\
+  gnu/packages/patches/icecat-CVE-2015-7207.patch		\
+  gnu/packages/patches/icecat-CVE-2016-1952-pt01.patch		\
+  gnu/packages/patches/icecat-CVE-2016-1952-pt02.patch		\
+  gnu/packages/patches/icecat-CVE-2016-1952-pt03.patch		\
+  gnu/packages/patches/icecat-CVE-2016-1952-pt04.patch		\
+  gnu/packages/patches/icecat-CVE-2016-1952-pt05.patch		\
+  gnu/packages/patches/icecat-CVE-2016-1952-pt06.patch		\
+  gnu/packages/patches/icecat-CVE-2016-1954.patch		\
+  gnu/packages/patches/icecat-CVE-2016-1960.patch		\
+  gnu/packages/patches/icecat-CVE-2016-1961.patch		\
+  gnu/packages/patches/icecat-CVE-2016-1962.patch		\
+  gnu/packages/patches/icecat-CVE-2016-1964.patch		\
+  gnu/packages/patches/icecat-CVE-2016-1965.patch		\
+  gnu/packages/patches/icecat-CVE-2016-1966.patch		\
+  gnu/packages/patches/icecat-CVE-2016-1974.patch		\
+  gnu/packages/patches/icecat-bug-1248851.patch			\
   gnu/packages/patches/icu4c-CVE-2014-6585.patch		\
   gnu/packages/patches/icu4c-CVE-2015-1270.patch		\
   gnu/packages/patches/icu4c-CVE-2015-4760.patch		\
+  gnu/packages/patches/ilmbase-fix-tests.patch			\
   gnu/packages/patches/imagemagick-test-segv.patch		\
   gnu/packages/patches/irrlicht-mesa-10.patch			\
   gnu/packages/patches/jasper-CVE-2007-2721.patch		\
@@ -536,7 +559,10 @@ dist_patch_DATA =						\
   gnu/packages/patches/jasper-CVE-2014-8157.patch		\
   gnu/packages/patches/jasper-CVE-2014-8158.patch		\
   gnu/packages/patches/jasper-CVE-2014-9029.patch		\
+  gnu/packages/patches/jasper-CVE-2016-1577.patch		\
   gnu/packages/patches/jasper-CVE-2016-1867.patch		\
+  gnu/packages/patches/jasper-CVE-2016-2089.patch		\
+  gnu/packages/patches/jasper-CVE-2016-2116.patch		\
   gnu/packages/patches/jbig2dec-ignore-testtest.patch		\
   gnu/packages/patches/kmod-module-directory.patch		\
   gnu/packages/patches/ldc-disable-tests.patch			\
@@ -556,19 +582,18 @@ dist_patch_DATA =						\
   gnu/packages/patches/libevent-dns-tests.patch			\
   gnu/packages/patches/libmtp-devices.patch			\
   gnu/packages/patches/liboop-mips64-deplibs-fix.patch		\
+  gnu/packages/patches/libotr-test-auth-fix.patch		\
   gnu/packages/patches/liblxqt-include.patch			\
   gnu/packages/patches/libmad-armv7-thumb-pt1.patch		\
   gnu/packages/patches/libmad-armv7-thumb-pt2.patch		\
   gnu/packages/patches/libmad-frame-length.patch		\
   gnu/packages/patches/libmad-mips-newgcc.patch			\
+  gnu/packages/patches/libssh-0.6.5-CVE-2016-0739.patch		\
   gnu/packages/patches/libtheora-config-guess.patch		\
   gnu/packages/patches/libtiff-CVE-2015-8665+CVE-2015-8683.patch \
   gnu/packages/patches/libtiff-oob-accesses-in-decode.patch	\
   gnu/packages/patches/libtiff-oob-write-in-nextdecode.patch	\
   gnu/packages/patches/libtool-skip-tests2.patch		\
-  gnu/packages/patches/libsndfile-CVE-2014-9496.patch		\
-  gnu/packages/patches/libsndfile-CVE-2015-7805.patch		\
-  gnu/packages/patches/libssh-CVE-2014-0017.patch		\
   gnu/packages/patches/libunwind-CVE-2015-3239.patch		\
   gnu/packages/patches/libwmf-CAN-2004-0941.patch		\
   gnu/packages/patches/libwmf-CVE-2006-3376.patch		\
@@ -602,18 +627,15 @@ dist_patch_DATA =						\
   gnu/packages/patches/mcron-install.patch			\
   gnu/packages/patches/mdadm-gcc-4.9-fix.patch			\
   gnu/packages/patches/mhash-keygen-test-segfault.patch		\
-  gnu/packages/patches/mit-krb5-CVE-2015-2695-pt1.patch		\
-  gnu/packages/patches/mit-krb5-CVE-2015-2695-pt2.patch		\
-  gnu/packages/patches/mit-krb5-CVE-2015-2696.patch		\
-  gnu/packages/patches/mit-krb5-CVE-2015-2697.patch		\
-  gnu/packages/patches/mit-krb5-CVE-2015-2698-pt1.patch		\
-  gnu/packages/patches/mit-krb5-CVE-2015-2698-pt2.patch		\
+  gnu/packages/patches/mit-krb5-CVE-2015-8629.patch		\
+  gnu/packages/patches/mit-krb5-CVE-2015-8630.patch		\
+  gnu/packages/patches/mit-krb5-CVE-2015-8631.patch		\
+  gnu/packages/patches/mit-krb5-init-context-null-spnego.patch	\
   gnu/packages/patches/mpc123-initialize-ao.patch		\
   gnu/packages/patches/mplayer2-theora-fix.patch		\
   gnu/packages/patches/module-init-tools-moduledir.patch	\
   gnu/packages/patches/mumps-build-parallelism.patch		\
   gnu/packages/patches/mupen64plus-ui-console-notice.patch	\
-  gnu/packages/patches/mupdf-buildsystem-fix.patch		\
   gnu/packages/patches/mutt-store-references.patch		\
   gnu/packages/patches/net-tools-bitrot.patch			\
   gnu/packages/patches/ngircd-handle-zombies.patch		\
@@ -624,12 +646,13 @@ dist_patch_DATA =						\
   gnu/packages/patches/nvi-assume-preserve-path.patch		\
   gnu/packages/patches/nvi-dbpagesize-binpower.patch		\
   gnu/packages/patches/nvi-db4.patch				\
+  gnu/packages/patches/ocaml-findlib-make-install.patch	\
   gnu/packages/patches/openexr-missing-samples.patch		\
   gnu/packages/patches/openimageio-boost-1.60.patch		\
   gnu/packages/patches/openjpeg-CVE-2015-6581.patch		\
   gnu/packages/patches/openjpeg-use-after-free-fix.patch	\
   gnu/packages/patches/openssl-runpath.patch			\
-  gnu/packages/patches/openssl-c-rehash.patch			\
+  gnu/packages/patches/openssl-c-rehash-in.patch		\
   gnu/packages/patches/orpheus-cast-errors-and-includes.patch	\
   gnu/packages/patches/ots-no-include-missing-file.patch	\
   gnu/packages/patches/patchelf-page-size.patch			\
@@ -637,6 +660,7 @@ dist_patch_DATA =						\
   gnu/packages/patches/patchutils-xfail-gendiff-tests.patch	\
   gnu/packages/patches/patch-hurd-path-max.patch		\
   gnu/packages/patches/perl-CVE-2015-8607.patch			\
+  gnu/packages/patches/perl-CVE-2016-2381.patch			\
   gnu/packages/patches/perl-autosplit-default-time.patch	\
   gnu/packages/patches/perl-deterministic-ordering.patch	\
   gnu/packages/patches/perl-finance-quote-unuse-mozilla-ca.patch \
@@ -659,6 +683,7 @@ dist_patch_DATA =						\
   gnu/packages/patches/plotutils-libpng-jmpbuf.patch		\
   gnu/packages/patches/polkit-drop-test.patch			\
   gnu/packages/patches/portaudio-audacity-compat.patch		\
+  gnu/packages/patches/procmail-ambiguous-getline-debian.patch  \
   gnu/packages/patches/pt-scotch-build-parallelism.patch	\
   gnu/packages/patches/pulseaudio-fix-mult-test.patch		\
   gnu/packages/patches/pulseaudio-longer-test-timeout.patch	\
@@ -675,16 +700,23 @@ dist_patch_DATA =						\
   gnu/packages/patches/python-disable-ssl-test.patch		\
   gnu/packages/patches/python-fix-tests.patch			\
   gnu/packages/patches/python-ipython-inputhook-ctype.patch	\
+  gnu/packages/patches/python-rarfile-fix-tests.patch		\
   gnu/packages/patches/python2-rdflib-drop-sparqlwrapper.patch	\
   gnu/packages/patches/python-configobj-setuptools.patch	\
+  gnu/packages/patches/python-paste-remove-website-test.patch	\
+  gnu/packages/patches/python-paste-remove-timing-test.patch	\
   gnu/packages/patches/python2-pygobject-2-gi-info-type-error-domain.patch \
   gnu/packages/patches/qemu-CVE-2015-8558.patch			\
   gnu/packages/patches/qemu-CVE-2015-8567.patch			\
   gnu/packages/patches/qemu-CVE-2015-8613.patch			\
+  gnu/packages/patches/qemu-CVE-2015-8619.patch			\
   gnu/packages/patches/qemu-CVE-2015-8701.patch			\
   gnu/packages/patches/qemu-CVE-2015-8743.patch			\
   gnu/packages/patches/qemu-CVE-2016-1568.patch			\
   gnu/packages/patches/qemu-CVE-2016-1922.patch			\
+  gnu/packages/patches/qemu-CVE-2016-1981.patch			\
+  gnu/packages/patches/qemu-CVE-2016-2197.patch			\
+  gnu/packages/patches/qemu-usb-ehci-oob-read.patch		\
   gnu/packages/patches/qemu-virtio-9p-use-accessor-to-get-thread-pool.patch \
   gnu/packages/patches/qt4-ldflags.patch			\
   gnu/packages/patches/ratpoison-shell.patch			\
@@ -694,13 +726,13 @@ dist_patch_DATA =						\
   gnu/packages/patches/sed-hurd-path-max.patch			\
   gnu/packages/patches/scheme48-tests.patch			\
   gnu/packages/patches/scotch-test-threading.patch		\
-  gnu/packages/patches/scribus-qobject.patch			\
   gnu/packages/patches/sdl-libx11-1.6.patch			\
   gnu/packages/patches/serf-comment-style-fix.patch		\
   gnu/packages/patches/serf-deflate-buckets-test-fix.patch	\
   gnu/packages/patches/slim-session.patch			\
   gnu/packages/patches/slim-config.patch			\
   gnu/packages/patches/slim-sigusr1.patch			\
+  gnu/packages/patches/slurm-configure-remove-nonfree-contribs.patch \
   gnu/packages/patches/soprano-find-clucene.patch		\
   gnu/packages/patches/sudo-CVE-2015-5602.patch			\
   gnu/packages/patches/superlu-dist-scotchmetis.patch		\
@@ -708,6 +740,7 @@ dist_patch_DATA =						\
   gnu/packages/patches/tar-d_ino_in_dirent-fix.patch		\
   gnu/packages/patches/tar-skip-unreliable-tests.patch		\
   gnu/packages/patches/tcl-mkindex-deterministic.patch		\
+  gnu/packages/patches/tclxml-3.2-install.patch			\
   gnu/packages/patches/tcsh-fix-autotest.patch			\
   gnu/packages/patches/texi2html-document-encoding.patch	\
   gnu/packages/patches/texi2html-i18n.patch			\
@@ -736,13 +769,13 @@ dist_patch_DATA =						\
   gnu/packages/patches/util-linux-tests.patch			\
   gnu/packages/patches/upower-builddir.patch			\
   gnu/packages/patches/valgrind-enable-arm.patch		\
+  gnu/packages/patches/vorbis-tools-CVE-2015-6749.patch		\
   gnu/packages/patches/vpnc-script.patch			\
   gnu/packages/patches/vtk-mesa-10.patch			\
   gnu/packages/patches/w3m-libgc.patch				\
   gnu/packages/patches/w3m-force-ssl_verify_server-on.patch	\
   gnu/packages/patches/w3m-disable-sslv2-and-sslv3.patch	\
   gnu/packages/patches/w3m-disable-weak-ciphers.patch		\
-  gnu/packages/patches/webkitgtk-2.4-sql-init-string.patch	\
   gnu/packages/patches/weechat-python.patch			\
   gnu/packages/patches/weex-vacopy.patch			\
   gnu/packages/patches/wicd-bitrate-none-fix.patch		\
@@ -763,17 +796,9 @@ dist_patch_DATA =						\
   gnu/packages/patches/xf86-video-intel-compat-api.patch	\
   gnu/packages/patches/xf86-video-intel-glibc-2.20.patch	\
   gnu/packages/patches/xf86-video-mach64-glibc-2.20.patch	\
-  gnu/packages/patches/xf86-video-mga-glibc-2.20.patch		\
   gnu/packages/patches/xf86-video-nv-remove-mibstore.patch	\
   gnu/packages/patches/xf86-video-openchrome-glibc-2.20.patch	\
-  gnu/packages/patches/xf86-video-r128-glibc-2.20.patch		\
-  gnu/packages/patches/xf86-video-siliconmotion-remove-mibstore.patch \
-  gnu/packages/patches/xf86-video-sis-fix-exa-crash.patch	\
-  gnu/packages/patches/xf86-video-sis-update-api.patch		\
-  gnu/packages/patches/xf86-video-tdfx-remove-mibstore.patch	\
   gnu/packages/patches/xf86-video-tga-remove-mibstore.patch	\
-  gnu/packages/patches/xf86-video-trident-remove-mibstore.patch	\
-  gnu/packages/patches/xf86-video-vmware-glibc-2.20.patch	\
   gnu/packages/patches/xfce4-panel-plugins.patch		\
   gnu/packages/patches/xfce4-session-fix-xflock4.patch		\
   gnu/packages/patches/xfce4-settings-defaults.patch		\

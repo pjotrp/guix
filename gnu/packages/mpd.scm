@@ -4,6 +4,7 @@
 ;;; Copyright © 2014 Cyrill Schenkel <cyrill.schenkel@gmail.com>
 ;;; Copyright © 2014 Ian Denhardt <ian@zenhack.net>
 ;;; Copyright © 2015 Paul van der Walt <paul@denknerd.org>
+;;; Copyright © 2016 Leo Famulari <leo@famulari.name>
 ;;;
 ;;; This file is part of GNU Guix.
 ;;;
@@ -27,6 +28,7 @@
   #:use-module (guix download)
   #:use-module (guix utils)
   #:use-module (guix build-system gnu)
+  #:use-module (guix build-system python)
   #:use-module (gnu packages avahi)
   #:use-module (gnu packages boost)
   #:use-module (gnu packages icu4c)
@@ -39,6 +41,7 @@
   #:use-module (gnu packages mp3)
   #:use-module (gnu packages ncurses)
   #:use-module (gnu packages pkg-config)
+  #:use-module (gnu packages python)
   #:use-module (gnu packages autotools)
   #:use-module (gnu packages pulseaudio)
   #:use-module (gnu packages databases)
@@ -69,7 +72,7 @@ interfacing MPD in the C, C++ & Objective C languages.")
 (define-public mpd
   (package
     (name "mpd")
-    (version "0.19.10")
+    (version "0.19.12")
     (source (origin
               (method url-fetch)
               (uri
@@ -78,7 +81,7 @@ interfacing MPD in the C, C++ & Objective C languages.")
                               "/mpd-" version ".tar.xz"))
               (sha256
                (base32
-                "0laqn68iggqf0h06hg282cvpd9wsjqpjfg5fnn9wk3gr48yyp1n3"))))
+                "0xg8w5vn6xd0yfw55qj6wnav7v14nmr00s3d4w5gixbjrv3ycvvv"))))
     (build-system gnu-build-system)
     (inputs `(("ao" ,ao)
               ("alsa-lib" ,alsa-lib)
@@ -178,7 +181,7 @@ terminal using ncurses.")
 (define-public ncmpcpp
   (package
     (name "ncmpcpp")
-    (version "0.6.7")
+    (version "0.7.3")
     (source (origin
               (method url-fetch)
               (uri
@@ -186,13 +189,14 @@ terminal using ncurses.")
                               version ".tar.bz2"))
               (sha256
                (base32
-                "0yr1ib14qkgbsv839anpzkfbwkm6gg8wv4bf98ar7q5l2p2pv008"))))
+                "04mj6r0whikliblxfbz92pibwcd7a3ywkryf01a89zd4bi1jk2rc"))))
     (build-system gnu-build-system)
     (inputs `(("libmpdclient" ,libmpdclient)
               ("boost"  ,boost)
               ("readline" ,readline)
               ("ncurses" ,ncurses)
-              ("taglib" ,taglib)))
+              ("taglib" ,taglib)
+              ("icu4c" ,icu4c)))
     (native-inputs
      `(("pkg-config" ,pkg-config)
        ("automake" ,automake)
@@ -202,12 +206,11 @@ terminal using ncurses.")
      '(#:configure-flags
        '("BOOST_LIB_SUFFIX=" "--with-taglib")
        #:phases
-       (alist-cons-after
-        'unpack 'autogen
-        (lambda _
-          (setenv "NOCONFIGURE" "true")
-          (zero? (system* "sh" "autogen.sh")))
-        %standard-phases)))
+       (modify-phases %standard-phases
+        (add-after 'unpack 'autogen
+         (lambda _
+           (setenv "NOCONFIGURE" "true")
+           (zero? (system* "sh" "autogen.sh")))))))
     (synopsis "Featureful ncurses based MPD client inspired by ncmpc")
     (description "Ncmpcpp is an mpd client with a UI very similar to ncmpc,
 but it provides new useful features such as support for regular expressions
@@ -239,3 +242,34 @@ information about tracks being played to a scrobbler, such as Libre.FM.")
     ;; instead.
     (home-page "http://mpd.wikia.com/wiki/Client:Mpdscribble")
     (license license:gpl2+)))
+
+(define-public python-mpd2
+  (package
+    (name "python-mpd2")
+    (version "0.5.5")
+    (source (origin
+              (method url-fetch)
+              (uri (pypi-uri "python-mpd2" version))
+              (sha256
+               (base32
+                "0laypd7h1j14b4vrmiayqlzdsh2j5hc3zv4l0fqvbrbw9y6763ii"))))
+    (build-system python-build-system)
+    (arguments
+     '(#:phases
+       (modify-phases %standard-phases
+         (replace 'check
+           (lambda _ (zero? (system* "python" "mpd_test.py")))))))
+    (native-inputs `(("python-mock" ,python-mock)))
+    (home-page "https://github.com/Mic92/python-mpd2")
+    (synopsis "Python MPD client library")
+    (description "Python-mpd2 is a Python library which provides a client
+interface for the Music Player Daemon.")
+    (license license:lgpl3+)
+    (properties `((python2-variant . ,(delay python2-mpd2))))))
+
+(define-public python2-mpd2
+  (let ((mpd2 (package-with-python2
+               (strip-python2-variant python-mpd2))))
+    (package (inherit mpd2)
+      (native-inputs `(("python2-setuptools" ,python2-setuptools)
+                       ,@(package-native-inputs mpd2))))))

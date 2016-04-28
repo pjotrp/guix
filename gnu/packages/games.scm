@@ -7,13 +7,16 @@
 ;;; Copyright © 2014, 2015 Ludovic Courtès <ludo@gnu.org>
 ;;; Copyright © 2014, 2015 Sou Bunnbu <iyzsong@gmail.com>
 ;;; Copyright © 2014, 2015 Mark H Weaver <mhw@netris.org>
-;;; Copyright © 2015 Andreas Enge <andreas@enge.fr>
+;;; Copyright © 2015, 2016 Andreas Enge <andreas@enge.fr>
 ;;; Copyright © 2015 David Hashe <david.hashe@dhashe.com>
 ;;; Copyright © 2015 Christopher Allan Webber <cwebber@dustycloud.org>
 ;;; Copyright © 2015 Ricardo Wurmus <rekado@elephly.net>
 ;;; Copyright © 2015, 2016 Alex Kost <alezost@gmail.com>
 ;;; Copyright © 2015 Paul van der Walt <paul@denknerd.org>
 ;;; Copyright © 2015 Taylan Ulrich Bayırlı/Kammer <taylanbayirli@gmail.com>
+;;; Copyright © 2016 Rodger Fox <thylakoid@openmailbox.org>
+;;; Copyright © 2016 Manolis Fragkiskos Ragkousis <manolis837@gmail.com>
+;;; Copyright © 2016 Nils Gillmann <niasterisk@grrlz.net>
 ;;;
 ;;; This file is part of GNU Guix.
 ;;;
@@ -44,6 +47,7 @@
   #:use-module (gnu packages base)
   #:use-module (gnu packages admin)
   #:use-module (gnu packages audio)
+  #:use-module (gnu packages avahi)
   #:use-module (gnu packages boost)
   #:use-module (gnu packages fribidi)
   #:use-module (gnu packages game-development)
@@ -67,6 +71,7 @@
   #:use-module (gnu packages sdl)
   #:use-module (gnu packages texinfo)
   #:use-module (gnu packages check)
+  #:use-module (gnu packages fonts)
   #:use-module (gnu packages fontutils)
   #:use-module (gnu packages gstreamer)
   #:use-module (gnu packages bash)
@@ -845,7 +850,7 @@ either by Infocom or created using the Inform compiler.")
 (define-public retroarch
   (package
     (name "retroarch")
-    (version "1.2.2")
+    (version "1.3.1")
     (source
      (origin
        (method url-fetch)
@@ -853,7 +858,7 @@ either by Infocom or created using the Inform compiler.")
                            version ".tar.gz"))
        (file-name (string-append name "-" version ".tar.gz"))
        (sha256
-        (base32 "1bxr8yhk3ad4df544qljsfjfhxa8zy1grq7rn1s02yfvdmgzf4qi"))))
+        (base32 "1wydzvligyby05x8c4lpg6xcnw9qkmvkskyhzc28xq10vm3q57fv"))))
     (build-system gnu-build-system)
     (arguments
      '(#:tests? #f ; no tests
@@ -995,7 +1000,7 @@ This game is based on the GPL version of the famous game TuxRacer.")
           (lambda _ (setenv "LIBS" "-lm"))))))
     (inputs
      `(("glu" ,glu)
-       ("mesa", mesa)
+       ("mesa" ,mesa)
        ("sdl" ,sdl)
        ("sdl-image" ,sdl-image)
        ("sdl-mixer" ,sdl-mixer)))
@@ -1180,7 +1185,7 @@ is programmed in Haskell.")
 (define-public manaplus
   (package
     (name "manaplus")
-    (version "1.6.1.16")
+    (version "1.6.3.12")
     (source (origin
               (method url-fetch)
               (uri (string-append
@@ -1188,7 +1193,7 @@ is programmed in Haskell.")
                     version "/manaplus-" version ".tar.xz"))
               (sha256
                (base32
-                "1vrsjvdbdzbnqmr8sp110b2d93kp5yfnifsn6zjm60kdvvbphdir"))))
+                "02bnd4nk1qzrfqckqkwb6sbjzsmacv968ih74cdgcykslpsr684d"))))
     (build-system gnu-build-system)
     (arguments
      '(#:configure-flags
@@ -1891,3 +1896,133 @@ and a game metadata scraper.")
     (description "The Emilia Pinball Project is a pinball simulator.  There
 are only two levels to play with, but they are very addictive.")
     (license license:gpl2)))
+
+(define-public pioneers
+  (package
+    (name "pioneers")
+    (version "15.3")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "http://downloads.sourceforge.net/pio/"
+                                  "pioneers-" version ".tar.gz"))
+              (sha256
+               (base32
+                "128s718nnraiznbg2rajjqb7cfkdg24hy6spdd9narb4f4dsbbv9"))))
+    (build-system gnu-build-system)
+    (inputs `(("gtk+" ,gtk+)
+              ("librsvg" ,librsvg)
+              ("avahi" ,avahi)))
+    (native-inputs `(("intltool" ,intltool)
+                     ("pkg-config" ,pkg-config)))
+    (synopsis "Board game inspired by The Settlers of Catan")
+    (description "Pioneers is an emulation of the board game The Settlers of
+Catan.  It can be played on a local network, on the internet, and with AI
+players.")
+    (home-page "http://pio.sourceforge.net/")
+    (license license:gpl2+)))
+
+(define-public desmume
+  (package
+    (name "desmume")
+    (version "0.9.11")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append
+             "mirror://sourceforge/desmume/desmume/"
+             version "/desmume-" version ".tar.gz"))
+       (sha256
+        (base32
+         "15l8wdw3q61fniy3h93d84dnm6s4pyadvh95a0j6d580rjk4pcrs"))))
+    (build-system gnu-build-system)
+    (arguments
+     ;; Enable support for WiFi and microphone.
+     `(#:configure-flags '("--enable-wifi"
+                           "--enable-openal")))
+    (native-inputs
+     `(("pkg-config" ,pkg-config)
+       ("intltool" ,intltool)))
+    (inputs
+     `(("zlib" ,zlib)
+       ("sdl" ,sdl)
+       ("glib" ,glib)
+       ("gtk+" ,gtk+-2)
+       ("glu" ,glu)))
+    (home-page "http://desmume.org/")
+    (synopsis "Nintendo DS emulator")
+    (description
+     "DeSmuME is an emulator for the Nintendo DS handheld gaming console.")
+    (license license:gpl2)))
+
+(define-public einstein
+  (package
+    (name "einstein")
+    (version "2.0")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "http://http.debian.net/debian/pool/main/e/"
+                                  "einstein/einstein_2.0.dfsg.2.orig.tar.gz"))
+              (sha256
+               (base32
+                "1hxrlv6n8py48j487i6wbb4n4vd55w0na69r7ccmmr9vmrsw5mlk"))
+              (patches (list (search-patch "einstein-build.patch")))))
+    (build-system gnu-build-system)
+    (inputs
+     `(("freetype" ,freetype)
+       ("sdl" ,(sdl-union (list sdl sdl-mixer sdl-ttf)))
+       ("zlib" ,zlib)))
+    (native-inputs
+     `(("font-dejavu" ,font-dejavu)))
+    (arguments
+     `(#:tests? #f ; no check target
+       #:phases
+        (modify-phases %standard-phases
+          (replace 'configure
+          (lambda* (#:key outputs inputs #:allow-other-keys)
+            (let ((out (assoc-ref outputs "out"))
+                  (dejavu (string-append (assoc-ref inputs "font-dejavu")
+                                         "/share/fonts/truetype/DejaVuSans.ttf")))
+              (substitute* "Makefile"
+                (("PREFIX=/usr/local") (string-append "PREFIX=" out)))
+              ;; The patch above registers a free font for use by the binary,
+              ;; but the font is copied during the compile phase into a
+              ;; resources file, so we need to make the ttf file available.
+              (symlink dejavu "res/DejaVuSans.ttf")
+              #t))))))
+    (synopsis "Logic puzzle game")
+    (description "The goal of this logic game is to open all cards in a 6x6
+grid, using a number of hints as to their relative position.  The game idea
+is attributed to Albert Einstein.")
+    ;; The original home page has disappeared.
+    (home-page (string-append "http://web.archive.org/web/20120521062745/"
+                              "http://games.flowix.com/en/index.html"))
+    ;; License according to
+    ;; http://web.archive.org/web/20150222180355/http://www.babichev.info/en/projects/index.html
+    ;; The source code is a DFSG-sanitized tarball and does not contain any
+    ;; license information.
+    (license license:gpl3+)))
+
+(define-public powwow
+  (package
+    (name "powwow")
+    (version "1.2.17")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append
+                    "http://www.hoopajoo.net/static/projects/powwow-"
+                    version ".tar.gz"))
+              (file-name (string-append name "-" version ".tar.gz"))
+              (sha256
+               (base32
+                "1xmsg2y7qcvj67i9ilnih0mvfxcpni7fzrz343x9rdfnkkzf3pp8"))))
+    (inputs
+     `(("ncurses" ,ncurses)))
+    (build-system gnu-build-system)
+    (home-page "http://www.hoopajoo.net/projects/powwow.html")
+    (synopsis "MUD and telnet client")
+    (description
+     "POWWOW is a client software which can be used for telnet as well as for
+@dfn{Multi-User Dungeon} (MUD).  Additionally it can serve as a nice client for
+the chat server psyced with the specific config located at
+http://lavachat.symlynx.com/unix/")
+    (license license:gpl2+)))

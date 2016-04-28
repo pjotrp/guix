@@ -1,7 +1,7 @@
 ;;; GNU Guix --- Functional package management for GNU
 ;;; Copyright © 2013 Nikita Karetnikov <nikita@karetnikov.org>
 ;;; Copyright © 2013 Cyril Roelandt <tipecaml@gmail.com>
-;;; Copyright © 2013, 2014, 2015 Ludovic Courtès <ludo@gnu.org>
+;;; Copyright © 2013, 2014, 2015, 2016 Ludovic Courtès <ludo@gnu.org>
 ;;; Copyright © 2013, 2014 Andreas Enge <andreas@enge.fr>
 ;;; Copyright © 2015 Mathieu Lirzin <mthl@openmailbox.org>
 ;;; Copyright © 2014, 2015 Mark H Weaver <mhw@netris.org>
@@ -30,6 +30,7 @@
                 #:select (asl2.0 bsd-2
                           gpl1+ gpl2 gpl2+ gpl3+ lgpl2.1
                           x11-style))
+  #:use-module (guix utils)
   #:use-module (guix packages)
   #:use-module (guix download)
   #:use-module (guix git-download)
@@ -75,15 +76,16 @@
 (define-public bazaar
   (package
     (name "bazaar")
-    (version "2.6.0")
+    (version "2.7.0")
     (source
      (origin
       (method url-fetch)
-      (uri (string-append "https://launchpad.net/bzr/2.6/" version
+      (uri (string-append "https://launchpad.net/bzr/"
+                          (version-major+minor version) "/" version
                           "/+download/bzr-" version ".tar.gz"))
       (sha256
        (base32
-        "1c6sj77h5f97qimjc14kr532kgc0jk3wq778xrkqi0pbh9qpk509"))))
+        "1cysix5k3wa6y7jjck3ckq3abls4gvz570s0v0hxv805nwki4i8d"))))
     (build-system python-build-system)
     (inputs
      ;; Note: 'tools/packaging/lp-upload-release' and 'tools/weavemerge.sh'
@@ -111,14 +113,14 @@ as well as the classic centralized workflow.")
   ;; Keep in sync with 'git-manpages'!
   (package
    (name "git")
-   (version "2.6.3")
+   (version "2.7.3")
    (source (origin
             (method url-fetch)
             (uri (string-append "mirror://kernel.org/software/scm/git/git-"
                                 version ".tar.xz"))
             (sha256
              (base32
-              "18vxb5fmwmrps504m23a4xdl29m7ibca3hmz0mn9jc38sz9y95yn"))))
+              "1di96q86fq3pdn5d5v4fw9vf58gha5i9b3r880mxlh275n8ngi49"))))
    (build-system gnu-build-system)
    (native-inputs
     `(("native-perl" ,perl)
@@ -147,7 +149,12 @@ as well as the classic centralized workflow.")
               "svn"                               ; git-svn
               "gui"))                             ; gitk, git gui
    (arguments
-    `(#:make-flags `("V=1") ; more verbose compilation
+    `(#:make-flags `("V=1"                        ;more verbose compilation
+
+                     ;; By default 'make install' creates hard links for
+                     ;; things in 'libexec/git-core', which leads to huge
+                     ;; nars; see <http://bugs.gnu.org/21949>.
+                     "NO_INSTALL_HARDLINKS=indeed")
       #:test-target "test"
       #:tests? #f ; FIXME: Many tests are failing
 
@@ -285,7 +292,7 @@ everything from small to very large projects with speed and efficiency.")
                     version ".tar.xz"))
               (sha256
                (base32
-                "1d7jb4pyln0prgxpxkfiy2l6ragsjzsyqyxbssbchdvl145gj8xf"))))
+                "0va9j0q9h44jqih38h4cmhvbmjppqq7zbiq70220m7hsqqkq824z"))))
     (build-system trivial-build-system)
     (arguments
      '(#:modules ((guix build utils))
@@ -317,7 +324,7 @@ command.")))
 (define-public libgit2
   (package
     (name "libgit2")
-    (version "0.23.3")
+    (version "0.24.0")
     (source (origin
               (method url-fetch)
               (uri (string-append "https://github.com/libgit2/libgit2/"
@@ -325,7 +332,7 @@ command.")))
               (file-name (string-append name "-" version ".tar.gz"))
               (sha256
                (base32
-                "1bhyzw9b7xr1vj24hgbwbfjw2wiaigiklccsdvd8r4kmcr180p1d"))))
+                "1c5jx0pcpz83x7s36jimfz5bj0vy7vwpchq9p4sgdqxy8gwr6rhw"))))
     (build-system cmake-build-system)
     (arguments
      `(#:phases
@@ -344,7 +351,7 @@ command.")))
     (inputs
      `(("libssh2" ,libssh2)
        ("libcurl" ,curl)
-       ("python" ,python)
+       ("python" ,python-wrapper)
        ("openssl" ,openssl)))
     (native-inputs
      `(("pkg-config" ,pkg-config)))
@@ -357,17 +364,78 @@ write native speed custom Git applications in any language with bindings.")
     ;; GPLv2 with linking exception
     (license gpl2)))
 
+(define-public cgit
+  (package
+    (name "cgit")
+    (version "0.12")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append
+                    "https://git.zx2c4.com/cgit/snapshot/cgit-"
+                    version ".tar.xz"))
+              (sha256
+               (base32
+                "1dx54hgfyabmg9nm5qp6d01f54nlbqbbdwhwl0llb9imjf237qif"))))
+    (build-system gnu-build-system)
+    (arguments
+     '(#:tests? #f ; XXX: fail to build the in-source git.
+       #:test-target "test"
+       #:make-flags '("CC=gcc" "SHELL_PATH=sh")
+       #:phases
+       (modify-phases %standard-phases
+         (add-after 'unpack 'unpack-git
+           (lambda* (#:key inputs #:allow-other-keys)
+             ;; Unpack the source of git into the 'git' directory.
+             (zero? (system*
+                     "tar" "--strip-components=1" "-C" "git" "-xf"
+                     (assoc-ref inputs "git:src")))))
+         (delete 'configure) ; no configure script
+         (add-after 'build 'build-man
+           (lambda* (#:key make-flags #:allow-other-keys)
+             (zero? (apply system* `("make" ,@make-flags "doc-man")))))
+         (replace 'install
+           (lambda* (#:key make-flags outputs #:allow-other-keys)
+             (let ((out (assoc-ref outputs "out")))
+               (and (zero? (apply system*
+                                  `("make" ,@make-flags
+                                    ,(string-append "prefix=" out)
+                                    ,(string-append
+                                      "CGIT_SCRIPT_PATH=" out "/share/cgit")
+                                    "install" "install-man")))
+                    ;; Move the platform-dependent 'cgit.cgi' into lib
+                    ;; to get it stripped.
+                    (rename-file (string-append out "/share/cgit/cgit.cgi")
+                                 (string-append out "/lib/cgit/cgit.cgi"))
+                    #t)))))))
+    (native-inputs
+     ;; For building manpage.
+     `(("asciidoc" ,asciidoc)
+       ("docbook-xml" ,docbook-xml)
+       ("docbook-xsl" ,docbook-xsl)
+       ("xmllint" ,libxml2)
+       ("xsltprot" ,libxslt)))
+    (inputs
+     `(("git:src" ,(package-source git))
+       ("openssl" ,openssl)
+       ("zlib" ,zlib)))
+    (home-page "https://git.zx2c4.com/cgit/")
+    (synopsis "Web frontend for git repositories")
+    (description
+     "CGit is an attempt to create a fast web interface for the Git SCM, using
+a built-in cache to decrease server I/O pressure.")
+    (license gpl2)))
+
 (define-public shflags
   (package
     (name "shflags")
-    (version "1.0.3")
+    (version "1.2.0")
     (source (origin
               (method url-fetch)
-              (uri (string-append "https://shflags.googlecode.com/files/"
-                                  "shflags-" version ".tgz"))
+              (uri (string-append "https://github.com/kward/shflags/archive/v"
+                                  version ".tar.gz"))
               (sha256
                (base32
-                "08laxhf1hifh3w4j0hri5ppcklaqz0mnkmbaz8j0wxih29vi8slm"))))
+                "0zxw12haylaq60a335xlqcs4afw2zrgwqymmpw0m21r51w6irdmr"))))
     (build-system trivial-build-system)
     (native-inputs `(("tar" ,tar)
                      ("gzip" ,gzip)))
@@ -389,7 +457,7 @@ write native speed custom Git applications in any language with bindings.")
                        (copy-file "src/shflags"
                                   (string-append srcdir "/shflags"))
                        #t)))))
-    (home-page "https://code.google.com/p/shflags/")
+    (home-page "https://github.com/kward/shflags")
     (synopsis "Command-line flags library for shell scripts")
     (description
      "Shell Flags (shFlags) is a library written to greatly simplify the
@@ -482,19 +550,16 @@ also walk each side of a merge and test those changes individually.")
 (define-public gitolite
   (package
     (name "gitolite")
-    (version "3.6.2")
+    (version "3.6.5")
     (source (origin
               (method url-fetch)
               (uri (string-append
                     "https://github.com/sitaramc/gitolite/archive/v"
                     version ".tar.gz"))
               (file-name (string-append name "-" version ".tar.gz"))
-              ;; Commit ed807a4 upstream
-              (patches
-               (list (search-patch "gitolite-openssh-6.8-compat.patch")))
               (sha256
                (base32
-                "1gsgzi9ayb4rablki3mqr11b0h8db4xg43df660marfpacmkfb01"))))
+                "0xpqg04gyr4dhdhxx5lbk61lwwd5ml32530bigg2qy663icngwqm"))))
     (build-system gnu-build-system)
     (arguments
      '(#:tests? #f ; no tests
@@ -541,14 +606,14 @@ control to Git repositories.")
 (define-public mercurial
   (package
     (name "mercurial")
-    (version "3.2.4")
+    (version "3.7.2")
     (source (origin
              (method url-fetch)
-             (uri (string-append "https://mercurial.selenic.com/release/mercurial-"
-                                 version ".tar.gz"))
+             (uri (string-append "https://www.mercurial-scm.org/"
+                                 "release/mercurial-" version ".tar.gz"))
              (sha256
               (base32
-               "1g7nfvapxj5k44dyp0p08v37s0zmrj2vl0rjgfd8297x0afidm08"))))
+               "0ykdvj7k4yxiwbfk0gnrq2flmdlf2cracsvqn3vr7nxhda6l7aav"))))
     (build-system python-build-system)
     (arguments
      `(;; Restrict to Python 2, as Python 3 would require
@@ -557,7 +622,7 @@ control to Git repositories.")
        ;; FIXME: Disabled tests because they require the nose unit
        ;; testing framework: https://nose.readthedocs.org/en/latest/ .
        #:tests? #f))
-    (home-page "http://mercurial.selenic.com")
+    (home-page "https://www.mercurial-scm.org/")
     (synopsis "Decentralized version control system")
     (description
      "Mercurial is a free, distributed source control management tool.
@@ -568,14 +633,14 @@ and offers an easy and intuitive interface.")
 (define-public neon
   (package
     (name "neon")
-    (version "0.30.0")
+    (version "0.30.1")
     (source (origin
              (method url-fetch)
              (uri (string-append "http://www.webdav.org/neon/neon-"
                                  version ".tar.gz"))
              (sha256
               (base32
-               "1hlhg5w505jxdvaf7bq17057f6a48dry981g7lp2gwrhbp5wyqi9"))))
+               "1pawhk02x728xn396a1kcivy9gqm94srmgad6ymr9l0qvk02dih0"))))
     (build-system gnu-build-system)
     (native-inputs
      `(("perl" ,perl)
@@ -977,7 +1042,7 @@ output of the 'git' command.")
 (define-public findnewest
   (package
     (name "findnewest")
-    (version "0.2")
+    (version "0.3")
     (source (origin
               (method url-fetch)
               (uri (string-append
@@ -985,7 +1050,7 @@ output of the 'git' command.")
                     version ".tar.gz"))
               (sha256
                (base32
-                "0zlflad568y203yc5ynf1nxi2szn2pmbf1lvz6yk77kjyrpw7zxg"))))
+                "1ydis4y0amkgfr4y60sn076f1l41ya2kn89kfd9fqf44f9ccgb5r"))))
     (build-system gnu-build-system)
     (arguments
      '(#:phases (modify-phases %standard-phases

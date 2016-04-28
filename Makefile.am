@@ -49,12 +49,14 @@ MODULES =					\
   guix/serialization.scm			\
   guix/nar.scm					\
   guix/derivations.scm				\
+  guix/grafts.scm				\
   guix/gnu-maintenance.scm			\
   guix/upstream.scm				\
   guix/licenses.scm				\
   guix/graph.scm				\
   guix/cve.scm					\
   guix/build-system.scm				\
+  guix/build-system/ant.scm			\
   guix/build-system/cmake.scm			\
   guix/build-system/emacs.scm			\
   guix/build-system/glib-or-gtk.scm		\
@@ -74,6 +76,7 @@ MODULES =					\
   guix/cvs-download.scm				\
   guix/svn-download.scm				\
   guix/ui.scm					\
+  guix/build/ant-build-system.scm		\
   guix/build/download.scm			\
   guix/build/cmake-build-system.scm		\
   guix/build/emacs-build-system.scm		\
@@ -98,6 +101,7 @@ MODULES =					\
   guix/build/gremlin.scm			\
   guix/build/emacs-utils.scm			\
   guix/build/graft.scm				\
+  guix/build/bournish.scm			\
   guix/search-paths.scm				\
   guix/packages.scm				\
   guix/import/utils.scm				\
@@ -140,6 +144,7 @@ MODULES =					\
 if HAVE_GUILE_JSON
 
 MODULES +=					\
+  guix/import/github.scm   			\
   guix/import/json.scm				\
   guix/import/pypi.scm				\
   guix/scripts/import/pypi.scm			\
@@ -168,15 +173,18 @@ dist_noinst_DATA = guix/tests.scm
 
 # Linux-Libre configurations.
 KCONFIGS =					\
-  gnu/packages/linux-libre-i686.conf		\
-  gnu/packages/linux-libre-x86_64.conf		\
+  gnu/packages/linux-libre-4.5-i686.conf	\
+  gnu/packages/linux-libre-4.5-x86_64.conf	\
+  gnu/packages/linux-libre-4.4-i686.conf	\
+  gnu/packages/linux-libre-4.4-x86_64.conf	\
   gnu/packages/linux-libre-4.1-i686.conf	\
   gnu/packages/linux-libre-4.1-x86_64.conf
 
 # Templates, examples.
 EXAMPLES =					\
   gnu/system/examples/bare-bones.tmpl		\
-  gnu/system/examples/desktop.tmpl
+  gnu/system/examples/desktop.tmpl		\
+  gnu/system/examples/lightweight-desktop.tmpl
 
 GOBJECTS = $(MODULES:%.scm=%.go) guix/config.go guix/tests.go
 
@@ -219,8 +227,10 @@ SCM_TESTS =					\
   tests/substitute.scm				\
   tests/builders.scm				\
   tests/derivations.scm				\
+  tests/grafts.scm				\
   tests/ui.scm					\
   tests/records.scm				\
+  tests/upstream.scm				\
   tests/utils.scm				\
   tests/build-utils.scm				\
   tests/packages.scm				\
@@ -412,7 +422,11 @@ include daemon.am
 endif BUILD_DAEMON
 
 ACLOCAL_AMFLAGS = -I m4
+
+# Pass an explicit '--localstatedir' so that configure does not error out if
+# it finds an existing installation with a different localstatedir.
 AM_DISTCHECK_CONFIGURE_FLAGS =			\
+  --localstatedir="$$dc_install_base/var"	\
   --with-libgcrypt-prefix="$(LIBGCRYPT_PREFIX)"	\
   --with-libgcrypt-libdir="$(LIBGCRYPT_LIBDIR)"	\
   --with-nix-prefix="$(NIX_PREFIX)"		\

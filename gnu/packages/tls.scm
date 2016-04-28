@@ -1,11 +1,12 @@
 ;;; GNU Guix --- Functional package management for GNU
-;;; Copyright © 2012, 2013, 2014, 2015 Ludovic Courtès <ludo@gnu.org>
+;;; Copyright © 2012, 2013, 2014, 2015, 2016 Ludovic Courtès <ludo@gnu.org>
 ;;; Copyright © 2014, 2015, 2016 Mark H Weaver <mhw@netris.org>
 ;;; Copyright © 2014 Ian Denhardt <ian@zenhack.net>
 ;;; Copyright © 2013, 2015 Andreas Enge <andreas@enge.fr>
 ;;; Copyright © 2015 David Thompson <davet@gnu.org>
 ;;; Copyright © 2015 Leo Famulari <leo@famulari.name>
 ;;; Copyright © 2016 Efraim Flashner <efraim@flashner.co.il>
+;;; Copyright © 2016 Nils Gillmann <niasterisk@grrlz.net>
 ;;;
 ;;; This file is part of GNU Guix.
 ;;;
@@ -73,7 +74,7 @@ specifications.")
     (source
      (origin
       (method url-fetch)
-      (uri (string-append "http://p11-glue.freedesktop.org/releases/p11-kit-"
+      (uri (string-append "https://p11-glue.freedesktop.org/releases/p11-kit-"
                           version ".tar.gz"))
       (sha256
        (base32
@@ -180,20 +181,20 @@ required structures.")
 (define-public openssl
   (package
    (name "openssl")
-   (version "1.0.2f")
+   (version "1.0.2g")
    (source (origin
-            (method url-fetch)
-            (uri (list (string-append "ftp://ftp.openssl.org/source/"
-                                      name "-" version ".tar.gz")
-                       (string-append "ftp://ftp.openssl.org/source/old/"
-                                      (string-trim-right version char-set:letter)
-                                      "/" name "-" version ".tar.gz")))
-            (sha256
-             (base32
-              "171fkdg9v6j29d962nh6kb79kfm8kkhy7n9makw39d7jvvj4wawk"))
-            (patches (map search-patch
-                          '("openssl-runpath.patch"
-                            "openssl-c-rehash.patch")))))
+             (method url-fetch)
+             (uri (list (string-append "ftp://ftp.openssl.org/source/"
+                                       name "-" version ".tar.gz")
+                        (string-append "ftp://ftp.openssl.org/source/old/"
+                                       (string-trim-right version char-set:letter)
+                                       "/" name "-" version ".tar.gz")))
+             (sha256
+              (base32
+               "0cxajjayi859czi545ddafi24m9nwsnjsw4q82zrmqvwj2rv315p"))
+             (patches (map search-patch
+                           '("openssl-runpath.patch"
+                             "openssl-c-rehash-in.patch")))))
    (build-system gnu-build-system)
    (native-inputs `(("perl" ,perl)))
    (arguments
@@ -285,7 +286,7 @@ required structures.")
 (define-public libressl
   (package
     (name "libressl")
-    (version "2.2.5")
+    (version "2.3.3")
     (source
      (origin
       (method url-fetch)
@@ -293,7 +294,7 @@ required structures.")
              "http://ftp.openbsd.org/pub/OpenBSD/LibreSSL/libressl-"
              version ".tar.gz"))
       (sha256 (base32
-               "0jwidi7fafcdh5qml72dx0ad0kfsk94qxzm29i7wd3cx8v8dxjp3"))))
+               "1a8anm8nsfyxds03csk738m2cmzjbsb867my1rz5ij3w31k32wvn"))))
     (build-system gnu-build-system)
     (native-search-paths
       ;; FIXME: These two variables must designate a single file or directory
@@ -318,57 +319,107 @@ security, and applying best practice development processes.")
                      "file://COPYING"
                      "See COPYING in the distribution.")))))
 
-(define-public acme
+(define-public python-acme
   (package
-    (name "acme")
-    (version "0.2.0")
+    (name "python-acme")
+    (version "0.4.2")
     (source (origin
       (method url-fetch)
       (uri (pypi-uri "acme" version))
       (sha256
         (base32
-         "1xcbywzrwrj2cmqhaj4k6b11wfkbm3i7za2k9j1sd74rs1zh5abl"))))
+         "1dh0qlsi309b37wa0nw0h2gvs94yk12lc4mhr3rb9c4h46m0hn8a"))))
     (build-system python-build-system)
     (arguments
-     `(#:python ,python-2))
-    ;; TODO: Add optional inputs for testing and building documentation.
+     `(#:phases
+       (modify-phases %standard-phases
+         (add-before 'install 'disable-egg-compression
+           (lambda _
+             ;; Do not compress the egg.
+             ;; See <http://bugs.gnu.org/20765>.
+             (let ((port (open-file "setup.cfg" "a")))
+               (display "\n[easy_install]\nzip_ok = 0\n"
+                        port)
+               (close-port port)
+               #t)))
+         (add-after 'install 'docs
+           (lambda* (#:key outputs #:allow-other-keys)
+             (let* ((out (assoc-ref outputs "out"))
+                    (man (string-append out "/share/man/man1"))
+                    (info (string-append out "/info")))
+               (and (zero? (system* "make" "-C" "docs" "man" "info"))
+                    (install-file "docs/_build/texinfo/acme-python.info" info)
+                    (install-file "docs/_build/man/acme-python.1" man)
+                    #t)))))))
+    ;; TODO: Add optional inputs for testing.
     (native-inputs
-     `(("python2-mock" ,python2-mock)
-       ("python2-setuptools" ,python2-setuptools)))
+     `(("python-mock" ,python-mock)
+       ;; For documentation
+       ("python-sphinx" ,python-sphinx)
+       ("python-sphinxcontrib-programoutput" ,python-sphinxcontrib-programoutput)
+       ("python-sphinx-rtd-theme" ,python-sphinx-rtd-theme)
+       ("python-setuptools" ,python-setuptools)
+       ("texinfo" ,texinfo)))
     (propagated-inputs
-     `(("python2-ndg-httpsclient" ,python2-ndg-httpsclient)
-       ("python2-werkzeug" ,python2-werkzeug)
-       ("python2-six" ,python2-six)
-       ("python2-requests" ,python2-requests)
-       ("python2-pytz" ,python2-pytz)
-       ("python2-pyrfc3339" ,python2-pyrfc3339)
-       ("python2-pyasn1" ,python2-pyasn1)
-       ("python2-cryptography" ,python2-cryptography)
-       ("python2-pyopenssl" ,python2-pyopenssl)))
+     `(("python-ndg-httpsclient" ,python-ndg-httpsclient)
+       ("python-werkzeug" ,python-werkzeug)
+       ("python-six" ,python-six)
+       ("python-requests" ,python-requests)
+       ("python-pytz" ,python-pytz)
+       ("python-pyrfc3339" ,python-pyrfc3339)
+       ("python-pyasn1" ,python-pyasn1)
+       ("python-cryptography" ,python-cryptography)
+       ("python-pyopenssl" ,python-pyopenssl)))
     (home-page "https://github.com/letsencrypt/letsencrypt")
     (synopsis "ACME protocol implementation in Python")
     (description "ACME protocol implementation in Python")
     (license license:asl2.0)))
 
+(define-public python2-acme
+  (package-with-python2 python-acme))
+
 (define-public letsencrypt
   (package
     (name "letsencrypt")
-    (version "0.2.0")
+    (version "0.4.2")
     (source (origin
               (method url-fetch)
               (uri (pypi-uri "letsencrypt" version))
               (sha256
                (base32
-                "0q57ylx00b6kl9zvawgag5yl03vlv1cjhp18xm96682pdibbgjci"))))
+                "1rjbblj60w7jwc5y04sy6fbxcynvakvazikg1pdmhyic5jmj9bg3"))))
     (build-system python-build-system)
     (arguments
-     `(#:python ,python-2))
-    ;; TODO: Add optional inputs for testing building documentation.
+     `(#:python ,python-2
+       #:phases
+       (modify-phases %standard-phases
+         (add-after 'install 'docs
+           (lambda* (#:key outputs #:allow-other-keys)
+             (let* ((out (assoc-ref outputs "out"))
+                    (man1 (string-append out "/share/man/man1"))
+                    (man7 (string-append out "/share/man/man7"))
+                    (info (string-append out "/info")))
+               (substitute* "docs/man/letsencrypt.rst"
+                 (("letsencrypt --help all")
+                  (string-append out "/bin/letsencrypt" " --help all")))
+               (and
+                 (zero? (system* "make" "-C" "docs" "man" "info"))
+                 (install-file "docs/_build/texinfo/LetsEncrypt.info" info)
+                 (install-file "docs/_build/man/letsencrypt.1" man1)
+                 (install-file "docs/_build/man/letsencrypt.7" man7)
+                 #t)))))))
+    ;; TODO: Add optional inputs for testing.
     (native-inputs
      `(("python2-nose" ,python2-nose)
-       ("python2-mock" ,python2-mock)))
+       ("python2-mock" ,python2-mock)
+       ;; For documentation
+       ("python2-sphinx" ,python2-sphinx)
+       ("python2-sphinx-rtd-theme" ,python2-sphinx-rtd-theme)
+       ("python2-sphinx-repoze-autointerface" ,python2-sphinx-repoze-autointerface)
+       ("python2-sphinxcontrib-programoutput" ,python2-sphinxcontrib-programoutput)
+       ("texinfo" ,texinfo)))
     (propagated-inputs
-     `(("acme" ,acme)
+     `(("python2-acme" ,python2-acme)
        ("python2-zope-interface" ,python2-zope-interface)
        ("python2-pythondialog" ,python2-pythondialog)
        ("python2-pyrfc3339" ,python2-pyrfc3339)

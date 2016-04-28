@@ -1,5 +1,5 @@
 ;;; GNU Guix --- Functional package management for GNU
-;;; Copyright © 2012, 2013, 2014, 2015 Ludovic Courtès <ludo@gnu.org>
+;;; Copyright © 2012, 2013, 2014, 2015, 2016 Ludovic Courtès <ludo@gnu.org>
 ;;;
 ;;; This file is part of GNU Guix.
 ;;;
@@ -85,22 +85,17 @@
             derivation-path->output-paths
             derivation
 
-            graft
-            graft?
-            graft-origin
-            graft-replacement
-            graft-origin-output
-            graft-replacement-output
-            graft-derivation
-
             map-derivation
 
             build-derivations
             built-derivations
 
-            %graft?
-            set-grafting
+            file-search-error?
+            file-search-error-file-name
+            file-search-error-search-path
 
+            search-path*
+            module->source-file-name
             build-expression->derivation)
 
   ;; Re-export it from here for backward compatibility.
@@ -705,7 +700,8 @@ HASH-ALGO, of the derivation NAME.  RECURSIVE? has the same meaning as for
                      (system (%current-system)) (env-vars '())
                      (inputs '()) (outputs '("out"))
                      hash hash-algo recursive?
-                     references-graphs allowed-references
+                     references-graphs
+                     allowed-references disallowed-references
                      leaked-env-vars local-build?
                      (substitutable? #t))
   "Build a derivation with the given arguments, and return the resulting
@@ -720,7 +716,8 @@ pairs.  In that case, the reference graph of each store path is exported in
 the build environment in the corresponding file, in a simple text format.
 
 When ALLOWED-REFERENCES is true, it must be a list of store items or outputs
-that the derivation's output may refer to.
+that the derivation's outputs may refer to.  Likewise, DISALLOWED-REFERENCES,
+if true, must be a list of things the outputs may not refer to.
 
 When LEAKED-ENV-VARS is true, it must be a list of strings denoting
 environment variables that are allowed to \"leak\" from the daemon's
@@ -777,6 +774,10 @@ output should not be used."
                       ,@(if allowed-references
                             `(("allowedReferences"
                                . ,(string-join allowed-references)))
+                            '())
+                      ,@(if disallowed-references
+                            `(("disallowedReferences"
+                               . ,(string-join disallowed-references)))
                             '())
                       ,@(if leaked-env-vars
                             `(("impureEnvVars"
@@ -1039,10 +1040,28 @@ system, imported, and appears under FINAL-PATH in the resulting store path."
                                   #:guile-for-build guile
                                   #:local-build? #t)))
 
+;; The "file not found" error condition.
+(define-condition-type &file-search-error &error
+  file-search-error?
+  (file     file-search-error-file-name)
+  (path     file-search-error-search-path))
+
 (define search-path*
   ;; A memoizing version of 'search-path' so 'imported-modules' does not end
   ;; up looking for the same files over and over again.
-  (memoize search-path))
+  (memoize (lambda (path file)
+             "Search for FILE in PATH and memoize the result.  Raise a
+'&file-search-error' condition if it could not be found."
+             (or (search-path path file)
+                 (raise (condition
+                         (&file-search-error (file file)
+                                             (path path))))))))
+
+(define (module->source-file-name module)
+  "Return the file name corresponding to MODULE, a Guile module name (a list
+of symbols.)"
+  (string-append (string-join (map symbol->string module) "/")
+                 ".scm"))
 
 (define* (%imported-modules store modules         ;deprecated
                             #:key (name "module-import")
@@ -1055,9 +1074,7 @@ search path."
   ;; TODO: Determine the closure of MODULES, build the `.go' files,
   ;; canonicalize the source files through read/write, etc.
   (let ((files (map (lambda (m)
-                      (let ((f (string-append
-                                (string-join (map symbol->string m) "/")
-                                ".scm")))
+                      (let ((f (module->source-file-name m)))
                         (cons f (search-path* module-path f))))
                     modules)))
     (imported-files store files #:name name #:system system
@@ -1111,81 +1128,6 @@ they can refer to each other."
                                   #:guile-for-build guile
                                   #:local-build? #t)))
 
-(define-record-type* <graft> graft make-graft
-  graft?
-  (origin             graft-origin)               ;derivation | store item
-  (origin-output      graft-origin-output         ;string | #f
-                      (default "out"))
-  (replacement        graft-replacement)          ;derivation | store item
-  (replacement-output graft-replacement-output    ;string | #f
-                      (default "out")))
-
-(define* (graft-derivation store name drv grafts
-                           #:key (guile (%guile-for-build))
-                           (system (%current-system)))
-  "Return a derivation called NAME, based on DRV but with all the GRAFTS
-applied."
-  ;; XXX: Someday rewrite using gexps.
-  (define mapping
-    ;; List of store item pairs.
-    (map (match-lambda
-          (($ <graft> source source-output target target-output)
-           (cons (if (derivation? source)
-                     (derivation->output-path source source-output)
-                     source)
-                 (if (derivation? target)
-                     (derivation->output-path target target-output)
-                     target))))
-         grafts))
-
-  (define outputs
-    (match (derivation-outputs drv)
-      (((names . outputs) ...)
-       (map derivation-output-path outputs))))
-
-  (define output-names
-    (match (derivation-outputs drv)
-      (((names . outputs) ...)
-       names)))
-
-  (define build
-    `(begin
-       (use-modules (guix build graft)
-                    (guix build utils)
-                    (ice-9 match))
-
-       (let ((mapping ',mapping))
-         (for-each (lambda (input output)
-                     (format #t "grafting '~a' -> '~a'...~%" input output)
-                     (force-output)
-                     (rewrite-directory input output
-                                        `((,input . ,output)
-                                          ,@mapping)))
-                   ',outputs
-                   (match %outputs
-                     (((names . files) ...)
-                      files))))))
-
-  (define add-label
-    (cut cons "x" <>))
-
-  (match grafts
-    ((($ <graft> sources source-outputs targets target-outputs) ...)
-     (let ((sources (zip sources source-outputs))
-           (targets (zip targets target-outputs)))
-       (build-expression->derivation store name build
-                                     #:system system
-                                     #:guile-for-build guile
-                                     #:modules '((guix build graft)
-                                                 (guix build utils))
-                                     #:inputs `(,@(map (lambda (out)
-                                                         `("x" ,drv ,out))
-                                                       output-names)
-                                                ,@(append (map add-label sources)
-                                                          (map add-label targets)))
-                                     #:outputs output-names
-                                     #:local-build? #t)))))
-
 (define* (build-expression->derivation store name exp ;deprecated
                                        #:key
                                        (system (%current-system))
@@ -1197,6 +1139,7 @@ applied."
                                        guile-for-build
                                        references-graphs
                                        allowed-references
+                                       disallowed-references
                                        local-build? (substitutable? #t))
   "Return a derivation that executes Scheme expression EXP as a builder
 for derivation NAME.  INPUTS must be a list of (NAME DRV-PATH SUB-DRV)
@@ -1217,7 +1160,7 @@ EXP is built using GUILE-FOR-BUILD (a derivation).  When GUILE-FOR-BUILD is
 omitted or is #f, the value of the `%guile-for-build' fluid is used instead.
 
 See the `derivation' procedure for the meaning of REFERENCES-GRAPHS,
-ALLOWED-REFERENCES, LOCAL-BUILD?, and SUBSTITUTABLE?."
+ALLOWED-REFERENCES, DISALLOWED-REFERENCES, LOCAL-BUILD?, and SUBSTITUTABLE?."
   (define guile-drv
     (or guile-for-build (%guile-for-build)))
 
@@ -1343,6 +1286,7 @@ ALLOWED-REFERENCES, LOCAL-BUILD?, and SUBSTITUTABLE?."
                 #:outputs outputs
                 #:references-graphs references-graphs
                 #:allowed-references allowed-references
+                #:disallowed-references disallowed-references
                 #:local-build? local-build?
                 #:substitutable? substitutable?)))
 
@@ -1353,16 +1297,3 @@ ALLOWED-REFERENCES, LOCAL-BUILD?, and SUBSTITUTABLE?."
 
 (define built-derivations
   (store-lift build-derivations))
-
-;; The following might feel more at home in (guix packages) but since (guix
-;; gexp), which is a lower level, needs them, we put them here.
-
-(define %graft?
-  ;; Whether to honor package grafts by default.
-  (make-parameter #t))
-
-(define (set-grafting enable?)
-  "This monadic procedure enables grafting when ENABLE? is true, and disables
-it otherwise.  It returns the previous setting."
-  (lambda (store)
-    (values (%graft? enable?) store)))

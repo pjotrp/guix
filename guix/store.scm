@@ -1,5 +1,5 @@
 ;;; GNU Guix --- Functional package management for GNU
-;;; Copyright © 2012, 2013, 2014, 2015 Ludovic Courtès <ludo@gnu.org>
+;;; Copyright © 2012, 2013, 2014, 2015, 2016 Ludovic Courtès <ludo@gnu.org>
 ;;;
 ;;; This file is part of GNU Guix.
 ;;;
@@ -27,6 +27,7 @@
   #:use-module (srfi srfi-1)
   #:use-module (srfi srfi-9)
   #:use-module (srfi srfi-9 gnu)
+  #:use-module (srfi srfi-11)
   #:use-module (srfi srfi-26)
   #:use-module (srfi srfi-34)
   #:use-module (srfi srfi-35)
@@ -93,6 +94,7 @@
             path-info-nar-size
 
             references
+            references/substitutes
             requisites
             referrers
             optimize-store
@@ -118,6 +120,8 @@
             store-lower
             run-with-store
             %guile-for-build
+            current-system
+            set-current-system
             text-file
             interned-file
 
@@ -240,14 +244,16 @@
 (define-record-type <path-info>
   (path-info deriver hash references registration-time nar-size)
   path-info?
-  (deriver path-info-deriver)
+  (deriver path-info-deriver)                     ;string | #f
   (hash path-info-hash)
   (references path-info-references)
   (registration-time path-info-registration-time)
   (nar-size path-info-nar-size))
 
 (define (read-path-info p)
-  (let ((deriver  (read-store-path p))
+  (let ((deriver  (match (read-store-path p)
+                    ("" #f)
+                    (x  x)))
         (hash     (base16-string->bytevector (read-string p)))
         (refs     (read-store-path-list p))
         (registration-time (read-int p))
@@ -498,8 +504,13 @@ encoding conversion errors."
                               (status   k))))))))
 
 (define %default-substitute-urls
-  ;; Default list of substituters.
-  '("http://hydra.gnu.org"))
+  ;; Default list of substituters.  This is *not* the list baked in
+  ;; 'guix-daemon', but it is used by 'guix-service-type' and and a couple of
+  ;; clients ('guix build --log-file' uses it.)
+  (map (if (false-if-exception (resolve-interface '(gnutls)))
+           (cut string-append "https://" <>)
+           (cut string-append "http://" <>))
+       '("mirror.hydra.gnu.org" "hydra.gnu.org")))
 
 (define* (set-build-options server
                             #:key keep-failed? keep-going? fallback?
@@ -580,7 +591,12 @@ encoding conversion errors."
     (operation (name args ...) docstring return ...)))
 
 (define-operation (valid-path? (string path))
-  "Return #t when PATH is a valid store path."
+  "Return #t when PATH designates a valid store item and #f otherwise (an
+invalid item may exist on disk but still be invalid, for instance because it
+is the result of an aborted or failed build.)
+
+A '&nix-protocol-error' condition is raised if PATH is not prefixed by the
+store directory (/gnu/store)."
   boolean)
 
 (define-operation (query-path-hash (store-path path))
@@ -715,6 +731,63 @@ error if there is no such root."
              "Return the list of references of PATH."
              store-path-list))
 
+(define %reference-cache
+  ;; Brute-force cache mapping store items to their list of references.
+  ;; Caching matters because when building a profile in the presence of
+  ;; grafts, we keep calling 'graft-derivation', which in turn calls
+  ;; 'references/substitutes' many times with the same arguments.  Ideally we
+  ;; would use a cache associated with the daemon connection instead (XXX).
+  (make-hash-table 100))
+
+(define (references/substitutes store items)
+  "Return the list of list of references of ITEMS; the result has the same
+length as ITEMS.  Query substitute information for any item missing from the
+store at once.  Raise a '&nix-protocol-error' exception if reference
+information for one of ITEMS is missing."
+  (let* ((local-refs (map (lambda (item)
+                            (or (hash-ref %reference-cache item)
+                                (guard (c ((nix-protocol-error? c) #f))
+                                  (references store item))))
+                          items))
+         (missing    (fold-right (lambda (item local-ref result)
+                                   (if local-ref
+                                       result
+                                       (cons item result)))
+                                 '()
+                                 items local-refs))
+
+         ;; Query all the substitutes at once to minimize the cost of
+         ;; launching 'guix substitute' and making HTTP requests.
+         (substs     (substitutable-path-info store missing)))
+    (when (< (length substs) (length missing))
+      (raise (condition (&nix-protocol-error
+                         (message "cannot determine \
+the list of references")
+                         (status 1)))))
+
+    ;; Intersperse SUBSTS and LOCAL-REFS.
+    (let loop ((items       items)
+               (local-refs  local-refs)
+               (result      '()))
+      (match items
+        (()
+         (let ((result (reverse result)))
+           (for-each (cut hash-set! %reference-cache <> <>)
+                     items result)
+           result))
+        ((item items ...)
+         (match local-refs
+           ((#f tail ...)
+            (loop items tail
+                  (cons (any (lambda (subst)
+                               (and (string=? (substitutable-path subst) item)
+                                    (substitutable-references subst)))
+                             substs)
+                        result)))
+           ((head tail ...)
+            (loop items tail
+                  (cons head result)))))))))
+
 (define* (fold-path store proc seed path
                     #:optional (relatives (cut references store <>)))
   "Call PROC for each of the RELATIVES of PATH, exactly once, and return the
@@ -802,7 +875,9 @@ topological order."
   (operation (query-substitutable-path-infos (store-path-list paths))
              "Return information about the subset of PATHS that is
 substitutable.  For each substitutable path, a `substitutable?' object is
-returned."
+returned; thus, the resulting list can be shorter than PATHS.  Furthermore,
+that there is no guarantee that the order of the resulting list matches the
+order of PATHS."
              substitutable-path-list))
 
 (define-operation (optimize-store)
@@ -1039,6 +1114,18 @@ permission bits are kept."
 
 (define set-build-options*
   (store-lift set-build-options))
+
+(define-inlinable (current-system)
+  ;; Consult the %CURRENT-SYSTEM fluid at bind time.  This is equivalent to
+  ;; (lift0 %current-system %store-monad), but inlinable, thus avoiding
+  ;; closure allocation in some cases.
+  (lambda (state)
+    (values (%current-system) state)))
+
+(define-inlinable (set-current-system system)
+  ;; Set the %CURRENT-SYSTEM fluid at bind time.
+  (lambda (state)
+    (values (%current-system system) state)))
 
 (define %guile-for-build
   ;; The derivation of the Guile to be used within the build environment,

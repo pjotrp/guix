@@ -7,6 +7,8 @@
 ;;; Copyright © 2015 Taylan Ulrich Bayırlı/Kammer <taylanbayirli@gmail.com>
 ;;; Copyright © 2015, 2016 Efraim Flashner <efraim@flashner.co.il>
 ;;; Copyright © 2016 Christopher Allan Webber <cwebber@dustycloud.org>
+;;; Copyright © 2016 Tobias Geerinckx-Rice <tobias.geerinckx.rice@gmail.com>
+;;; Copyright © 2016 Alex Kost <alezost@gmail.com>
 ;;;
 ;;; This file is part of GNU Guix.
 ;;;
@@ -218,7 +220,7 @@ for SYSTEM and optionally VARIANT, or #f if there is no such configuration."
     (search-path %load-path file)))
 
 (define-public linux-libre
-  (let* ((version "4.4.1")
+  (let* ((version "4.5")
          (build-phase
           '(lambda* (#:key system inputs #:allow-other-keys #:rest args)
              ;; Apply the neat patch.
@@ -292,7 +294,7 @@ for SYSTEM and optionally VARIANT, or #f if there is no such configuration."
              (uri (linux-libre-urls version))
              (sha256
               (base32
-               "1d6wzhbpz0g79iwlkv10qmig518risz9bi3qw8wdn7j2xs7ij1j2"))))
+               "0km863vwy557flpygkr869yshpjs1v11ni78p8k9p9nm31ai6yn3"))))
     (build-system gnu-build-system)
     (supported-systems '("x86_64-linux" "i686-linux"))
     (native-inputs `(("perl" ,perl)
@@ -301,8 +303,10 @@ for SYSTEM and optionally VARIANT, or #f if there is no such configuration."
                      ("module-init-tools" ,module-init-tools)
                      ("patch/freedo+gnu" ,%boot-logo-patch)
 
-                     ,@(let ((conf (kernel-config (or (%current-target-system)
-                                                      (%current-system)))))
+                     ,@(let ((conf (kernel-config
+                                    (or (%current-target-system)
+                                        (%current-system))
+                                    #:variant (version-major+minor version))))
                          (if conf
                              `(("kconfig" ,conf))
                              '()))))
@@ -324,16 +328,33 @@ It has been modified to remove all non-free binary blobs.")
     (license license:gpl2)
     (home-page "http://www.gnu.org/software/linux-libre/"))))
 
-(define-public linux-libre-4.1
+(define-public linux-libre-4.4
   (package
     (inherit linux-libre)
-    (version "4.1.17")
+    (version "4.4.6")
     (source (origin
               (method url-fetch)
               (uri (linux-libre-urls version))
               (sha256
                (base32
-                "0mkvj5sab8l2k0mgfca3y4n5g9cxs3px0ysvdwa2zwl52n7dsfk4"))))
+                "0sf623knc4j23p96r0w1ng725kj45ra50bwix01z5nvl5aqpnsrp"))))
+    (native-inputs
+     (let ((conf (kernel-config (or (%current-target-system)
+                                    (%current-system))
+                                #:variant "4.4")))
+       `(,@(alist-delete "kconfig" (package-native-inputs linux-libre))
+         ("kconfig" ,conf))))))
+
+(define-public linux-libre-4.1
+  (package
+    (inherit linux-libre)
+    (version "4.1.20")
+    (source (origin
+              (method url-fetch)
+              (uri (linux-libre-urls version))
+              (sha256
+               (base32
+                "0vwk6jh57djbwr29xvlgaf14409bq9vmwf6r6nq9jdl6dizfd110"))))
     (native-inputs
      (let ((conf (kernel-config (or (%current-target-system)
                                     (%current-system))
@@ -794,14 +815,14 @@ MIDI functionality to the Linux-based operating system.")
 (define-public alsa-utils
   (package
     (name "alsa-utils")
-    (version "1.0.27.2")
+    (version "1.1.0")
     (source (origin
              (method url-fetch)
-             (uri (string-append "ftp://ftp.alsa-project.org/pub/utils/alsa-utils-"
-                                 version ".tar.bz2"))
+             (uri (string-append "ftp://ftp.alsa-project.org/pub/utils/"
+                                 name "-" version ".tar.bz2"))
              (sha256
               (base32
-               "1sjjngnq50jv5ilwsb4zys6smifni3bd6fn28gbnhfrg14wsrgq2"))))
+               "1wa88wvqcfhak9x3y65wzzwxmmyxb5bv2gyj7lnm653fnwsk271v"))))
     (build-system gnu-build-system)
     (arguments
      ;; XXX: Disable man page creation until we have DocBook.
@@ -867,15 +888,15 @@ packet filter.")
 (define-public iproute
   (package
     (name "iproute2")
-    (version "3.12.0")
+    (version "4.4.0")
     (source (origin
-             (method url-fetch)
-             (uri (string-append
-                   "mirror://kernel.org/linux/utils/net/iproute2/iproute2-"
-                   version ".tar.xz"))
-             (sha256
-              (base32
-               "04gi11gh087bg2nlxhj0lxrk8l9qxkpr88nsiil23917bm3h1xj4"))))
+              (method url-fetch)
+              (uri (string-append
+                    "mirror://kernel.org/linux/utils/net/iproute2/iproute2-"
+                    version ".tar.xz"))
+              (sha256
+               (base32
+                "05351m4m0whsivlblvs3m0nz5q9v6r06ik80z27gf6ca51kw74dw"))))
     (build-system gnu-build-system)
     (arguments
      `(#:tests? #f                                ; no test suite
@@ -887,13 +908,12 @@ packet filter.")
                             (string-append "DOCDIR=" out "/share/doc/"
                                            ,name "-" ,version)
                             (string-append "MANDIR=" out "/share/man")))
-       #:phases (alist-cons-before
-                 'install 'pre-install
-                 (lambda _
-                   ;; Don't attempt to create /var/lib/arpd.
-                   (substitute* "Makefile"
-                     (("^.*ARPDDIR.*$") "")))
-                 %standard-phases)))
+       #:phases (modify-phases %standard-phases
+                  (add-before 'install 'pre-install
+                    (lambda _
+                      ;; Don't attempt to create /var/lib/arpd.
+                      (substitute* "Makefile"
+                        (("^.*ARPDDIR.*$") "")))))))
     (inputs
      `(("iptables" ,iptables)
        ("db4" ,bdb)))
@@ -1561,7 +1581,6 @@ from the module-init-tools project.")
 
 (define-public eudev
   ;; The post-systemd fork, maintained by Gentoo.
-  ;; TODO: Merge with 'eudev-with-blkid' below at an opportune time.
   (package
     (name "eudev")
     (version "3.1.5")
@@ -1580,25 +1599,17 @@ from the module-init-tools project.")
        ("perl" ,perl)
        ("gperf" ,gperf)))
     (inputs
-     `(("kmod" ,kmod)))
+     ;; When linked against libblkid, eudev can populate /dev/disk/by-label
+     ;; and similar; it also installs the '60-persistent-storage.rules' file,
+     ;; which contains the rules to do that.
+     `(("util-linux" ,util-linux)                 ;for blkid
+       ("kmod" ,kmod)))
     (home-page "https://wiki.gentoo.org/wiki/Project:Eudev")
     (synopsis "Userspace device management")
     (description "Udev is a daemon which dynamically creates and removes
 device nodes from /dev/, handles hotplug events and loads drivers at boot
 time.")
     (license license:gpl2+)))
-
-(define-public eudev-with-blkid
-  ;; TODO: Merge with 'eudev' above at an opportune time.
-  (package
-    (inherit eudev)
-    (name "eudev-with-blkid")
-    (inputs
-     ;; When linked against libblkid, eudev can populate /dev/disk/by-label
-     ;; and similar; it also installs the '60-persistent-storage.rules' file,
-     ;; which contains the rules to do that.
-     `(("util-linux" ,util-linux)                 ;for blkid
-       ,@(package-inputs eudev)))))
 
 (define-public lvm2
   (package
@@ -2467,3 +2478,72 @@ write access to exFAT devices.")
 applications running on the Linux console.  It allows users to select items
 and copy/paste text in the console and in xterm.")
     (license license:gpl2+)))
+
+(define-public btrfs-progs
+  (package
+    (name "btrfs-progs")
+    (version "4.4.1")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "mirror://kernel.org/linux/kernel/"
+                                  "people/kdave/btrfs-progs/"
+                                  "btrfs-progs-v" version ".tar.xz"))
+              (sha256
+               (base32
+                "1z5882zx9jx02vyg067siws0irsl8pg37myx17hr4imn9ypf6r4r"))))
+    (build-system gnu-build-system)
+    (arguments
+     '(#:test-target "test"
+       #:parallel-tests? #f)) ; tests fail when run in parallel
+    (inputs `(("e2fsprogs" ,e2fsprogs)
+              ("libblkid" ,util-linux)
+              ("libuuid" ,util-linux)
+              ("zlib" ,zlib)
+              ("lzo" ,lzo)))
+    (native-inputs `(("pkg-config" ,pkg-config)
+                     ("asciidoc" ,asciidoc)
+                     ("xmlto" ,xmlto)
+                     ;; For building documentation
+                     ("libxml2" ,libxml2)
+                     ("docbook-xml" ,docbook-xml)
+                     ("docbook-xsl" ,docbook-xsl)))
+    (home-page "https://btrfs.wiki.kernel.org/")
+    (synopsis "Create and manage btrfs copy-on-write file systems")
+    (description "Btrfs is a copy-on-write (CoW) filesystem for Linux aimed at
+implementing advanced features while focusing on fault tolerance, repair and
+easy administration.")
+    ;; GPL2+: crc32.c, radix-tree.c, raid6.c, rbtree.c.
+    ;; GPL2: Everything else.
+    (license (list license:gpl2 license:gpl2+))))
+
+(define-public freefall
+  (package
+    (name "freefall")
+    (version (package-version linux-libre))
+    (source (package-source linux-libre))
+    (build-system gnu-build-system)
+    (arguments
+     '(#:phases (modify-phases %standard-phases
+                  (add-after 'unpack 'enter-subdirectory
+                    (lambda _
+                      (chdir "tools/laptop/freefall")))
+                  (delete 'configure)
+                  (add-before 'build 'increase-timeout
+                    (lambda _
+                      ;; The default of 2 seconds is too low: it assumes an
+                      ;; open lid and AC power without actually checking.
+                      (substitute* "freefall.c"
+                        (("alarm\\(2\\)") "alarm(5)")))))
+       #:make-flags (list (string-append "PREFIX="
+                                         (assoc-ref %outputs "out")))
+       #:tests? #f)) ;no tests
+    (home-page (package-home-page linux-libre))
+    (synopsis "Free-fall protection for spinning laptop hard drives")
+    (description
+     "Prevents shock damage to the internal spinning hard drive(s) of some
+HP and Dell laptops.  When sudden movement is detected, all input/output
+operations on the drive are suspended and its heads are parked on the ramp,
+where they are less likely to cause damage to the spinning disc.  Requires a
+drive that supports the ATA/ATAPI-7 IDLE IMMEDIATE command with unload
+feature, and a laptop with an accelerometer.  It has no effect on SSDs.")
+    (license license:gpl2)))

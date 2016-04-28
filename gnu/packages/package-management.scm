@@ -60,17 +60,17 @@
                      arch "-linux"
                      "/20131110/guile-2.0.9.tar.xz")))
 
-(define-public guix-0.9.0
+(define-public guix-0.10.0
   (package
     (name "guix")
-    (version "0.9.0")
+    (version "0.10.0")
     (source (origin
              (method url-fetch)
              (uri (string-append "ftp://alpha.gnu.org/gnu/guix/guix-"
                                  version ".tar.gz"))
              (sha256
               (base32
-               "0h573z2br0bf43sxyzia9xlm03n3y43zg1snds3c2piq2m6kabrn"))))
+               "0d4afwy7bpqi4k4bzvwc4ga4shwssis1nrvdw53qjyg9bw1a8lbn"))))
     (build-system gnu-build-system)
     (arguments
      `(#:configure-flags (list
@@ -140,9 +140,16 @@
                             (path   (string-append
                                      json "/share/guile/site/2.0:"
                                      gnutls "/share/guile/site/2.0")))
+
+                       ;; Ignore user settings so that a bogus
+                       ;; GUILE_LOAD_COMPILED_PATH does not prevent use of
+                       ;; 'guix', notably when it contains entries pointing to
+                       ;; incompatible .go files as reported at
+                       ;; <https://lists.gnu.org/archive/html/guix-devel/2016-03/msg01261.html>.
                        (wrap-program (string-append out "/bin/guix")
-                         `("GUILE_LOAD_PATH" ":" prefix (,path))
-                         `("GUILE_LOAD_COMPILED_PATH" ":" prefix (,path)))
+                         `("GUILE_LOAD_PATH" ":" = (,path))
+                         `("GUILE_LOAD_COMPILED_PATH" ":" = (,path)))
+
                        #t))))))
     (native-inputs `(("pkg-config" ,pkg-config)
                      ("emacs" ,emacs-no-x)))      ;for guix.el
@@ -193,11 +200,11 @@ the Nix package manager.")
 (define guix-devel
   ;; Development version of Guix.
   ;;
-  ;; Note: use a short commit id; when using the long one, the limit on socket
-  ;; file names is exceeded while running the tests.
-  (let ((commit "c3f29bc928d5900971f65965feaae59e1272a3f7"))
-    (package (inherit guix-0.9.0)
-      (version (string-append "0.9.0." (string-take commit 7)))
+  ;; Note: use a very short commit id; with a longer one, the limit on
+  ;; hash-bang lines would be exceeded while running the tests.
+  (let ((commit "761139354798303c605964b896c250a01486b00a"))
+    (package (inherit guix-0.10.0)
+      (version (string-append "0.10.0-0." (string-take commit 4)))
       (source (origin
                 (method git-fetch)
                 (uri (git-reference
@@ -205,10 +212,10 @@ the Nix package manager.")
                       (commit commit)))
                 (sha256
                  (base32
-                  "1mbikn6awgx3h08bzk3nz8xrqvxdjsbvzrbn26d6m8nrz96ya53a"))
+                  "1wvy9kms3v6k7cybw6489mqk161lv8d03qgmmxbmdgiwjmjxbzbn"))
                 (file-name (string-append "guix-" version "-checkout"))))
       (arguments
-       (substitute-keyword-arguments (package-arguments guix-0.9.0)
+       (substitute-keyword-arguments (package-arguments guix-0.10.0)
          ((#:configure-flags flags)
           ;; Set 'DOT_USER_PROGRAM' to the empty string so we don't keep a
           ;; reference to Graphviz, whose closure is pretty big (too big for
@@ -232,21 +239,21 @@ the Nix package manager.")
          ("texinfo" ,texinfo)
          ("graphviz" ,graphviz)
          ("help2man" ,help2man)
-         ,@(package-native-inputs guix-0.9.0))))))
+         ,@(package-native-inputs guix-0.10.0))))))
 
 (define-public guix guix-devel)
 
 (define-public nix
   (package
     (name "nix")
-    (version "1.10")
+    (version "1.11.2")
     (source (origin
              (method url-fetch)
              (uri (string-append "http://nixos.org/releases/nix/nix-"
                                  version "/nix-" version ".tar.xz"))
              (sha256
               (base32
-               "1xhh7l1dqwn6i3m51xp8l0aa95da3823w4h8n8hfxlcxaixcl4jn"))))
+               "1mk9z75gklxcv6kzwwz1h5r2ci5kjy6bh7qwk4m5lf5v9s0k64pw"))))
     (build-system gnu-build-system)
     ;; XXX: Should we pass '--with-store-dir=/gnu/store'?  But then we'd also
     ;; need '--localstatedir=/var'.  But then!  The thing would use /var/nix
@@ -389,21 +396,23 @@ transactions from C or Python.")
 (define-public diffoscope
   (package
     (name "diffoscope")
-    (version "34")
+    (version "51")
     (source (origin
-              (method git-fetch)
-              (uri (git-reference
-                    (url
-                     "https://anonscm.debian.org/cgit/reproducible/diffoscope.git")
-                    (commit version)))
+              (method url-fetch)
+              (uri (pypi-uri name version))
               (sha256
                (base32
-                "1g8b7bpkmns0355gkr3a244affwx4xzqwahwsl6ivw4z0qv7dih8"))
-              (file-name (string-append name "-" version "-checkout"))))
+                "18rn6rrwh586228vnaf1nq0wayh19zbvfc0qmnbys6ln2pv2v007"))))
     (build-system python-build-system)
     (arguments
-     `(#:python ,python-2
-       #:phases (modify-phases %standard-phases
+     `(#:phases (modify-phases %standard-phases
+                  ;; setup.py mistakenly requires python-magic from PyPi, even
+                  ;; though the Python bindings of `file` are sufficient.
+                  ;; https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=815844
+                  (add-after 'unpack 'dependency-on-python-magic
+                    (lambda _
+                      (substitute* "setup.py"
+                        (("'python-magic',") ""))))
                   (add-before 'build 'disable-egg-zipping
                     (lambda _
                       ;; Leave the .egg file uncompressed.
@@ -411,27 +420,16 @@ transactions from C or Python.")
                         (display "\n[easy_install]\nzip_ok = 0\n"
                                  port)
                         (close-port port)
-                        #t)))
-                  (add-before 'build 'dependency-on-rpm
-                    (lambda _
-                      (substitute* "setup.py"
-                        ;; Somehow this requirement is reported as not met,
-                        ;; even though rpm.py is in the search path.  So
-                        ;; delete it.
-                        (("'rpm-python',") ""))
-                      #t)))
-       ;; FIXME: Some obscure test failures.
-       #:tests? #f))
+                        #t))))))
     (inputs `(("rpm" ,rpm)                        ;for rpm-python
-              ("python-file" ,python2-file)
-              ("python-debian" ,python2-debian)
-              ("python-libarchive-c" ,python2-libarchive-c)
-              ("python-tlsh" ,python2-tlsh)
+              ("python-file" ,python-file)
+              ("python-debian" ,python-debian)
+              ("python-libarchive-c" ,python-libarchive-c)
+              ("python-tlsh" ,python-tlsh)
 
               ;; Below are modules used for tests.
-              ("python-pytest" ,python2-pytest)
-              ("python-chardet" ,python2-chardet)))
-    (native-inputs `(("python-setuptools" ,python2-setuptools)))
+              ("python-pytest" ,python-pytest)
+              ("python-chardet" ,python-chardet)))
     (home-page "http://diffoscope.org/")
     (synopsis "Compare files, archives, and directories in depth")
     (description

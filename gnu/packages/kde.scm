@@ -1,5 +1,5 @@
 ;;; GNU Guix --- Functional package management for GNU
-;;; Copyright © 2013, 2014, 2015 Andreas Enge <andreas@enge.fr>
+;;; Copyright © 2016 Efraim Flashner <efraim@flashner.co.il>
 ;;;
 ;;; This file is part of GNU Guix.
 ;;;
@@ -17,213 +17,63 @@
 ;;; along with GNU Guix.  If not, see <http://www.gnu.org/licenses/>.
 
 (define-module (gnu packages kde)
-  #:use-module ((guix licenses) #:select (bsd-2 lgpl2.0+ lgpl2.1 lgpl2.1+ lgpl3+))
-  #:use-module (guix packages)
-  #:use-module (guix download)
   #:use-module (guix build-system cmake)
-  #:use-module (gnu packages compression)
-  #:use-module (gnu packages doxygen)
-  #:use-module (gnu packages geeqie)
-  #:use-module (gnu packages glib)
-  #:use-module (gnu packages perl)
+  #:use-module (guix download)
+  #:use-module ((guix licenses) #:prefix license:)
+  #:use-module (guix packages)
+  #:use-module (guix utils)
+  #:use-module (gnu packages kde-frameworks)
   #:use-module (gnu packages pkg-config)
-  #:use-module (gnu packages pulseaudio)
-  #:use-module (gnu packages python)
-  #:use-module (gnu packages qt)
-  #:use-module (gnu packages rdf)
-  #:use-module (gnu packages ruby)
-  #:use-module (gnu packages video)
-  #:use-module (gnu packages xml)
-  #:use-module (gnu packages xorg))
+  #:use-module (gnu packages tls)
+  #:use-module (gnu packages qt))
 
-(define-public automoc4
+(define-public qca
   (package
-    (name "automoc4")
-    (version "0.9.88")
-    (source (origin
-             (method url-fetch)
-             (uri (string-append "http://download.kde.org/stable/" name
-                                "/" version "/" name "-"
-                                 version ".tar.bz2"))
-             (sha256
-              (base32
-               "0jackvg0bdjg797qlbbyf9syylm0qjs55mllhn11vqjsq3s1ch93"))))
-    (build-system cmake-build-system)
-    (inputs
-     `(("qt" ,qt-4)))
-    (arguments
-     `(#:tests? #f)) ; no check target
-    (home-page "http://techbase.kde.org/Development/Tools/Automoc4")
-    (synopsis "Build tool for KDE")
-    (description "AutoMoc4 automatically generates moc-files for KDE.")
-    (license bsd-2)))
-
-(define-public phonon
-  (package
-    (name "phonon")
-    (version "4.8.3")
-    (source (origin
-             (method url-fetch)
-             (uri (string-append "http://download.kde.org/stable/" name
-                                "/" version "/src/"
-                                name "-" version ".tar.xz"))
-             (sha256
-              (base32
-               "05nshngk03ln90vsjz44dx8al576f4vd5fvhs1l0jmx13jb9q551"))))
-    (build-system cmake-build-system)
-    ;; FIXME: Add optional input libqzeitgeist once available.
-    (native-inputs
-     `(("automoc4" ,automoc4)
-       ("pkg-config" ,pkg-config)))
-    (inputs
-     `(("glib" ,glib)
-       ("libx11" ,libx11)
-       ("pulseaudio" ,pulseaudio)))
-    (propagated-inputs
-     `(("qt" ,qt-4))) ; according to phonon.pc
-    (arguments
-     `(#:tests? #f)) ; no test target
-    (home-page "http://phonon.kde.org/")
-    (synopsis "Qt 4 multimedia API")
-    (description "KDE desktop environment")
-    (license lgpl2.1+)))
-
-(define-public qjson
-  (package
-    (name "qjson")
-    (version "0.8.1")
-    (source (origin
-             (method url-fetch)
-             (uri (string-append "https://github.com/flavio/qjson/archive/"
-                                 version ".tar.gz"))
-             (file-name (string-append name "-" version ".tar.gz"))
-             (sha256
-              (base32
-               "163fspi0xc705irv79qw861fmh68pjyla9vx3kqiq6xrdhb9834j"))))
-    (build-system cmake-build-system)
-    (inputs
-     `(("qt" ,qt-4)))
-    (arguments
-     `(#:tests? #f)) ; no test target
-    (home-page "http://qjson.sourceforge.net/")
-    (synopsis "Qt-based library for handling JSON")
-    (description "QJson is a Qt-based library that maps JSON data to QVariant
-objects and vice versa.  JSON arrays are mapped to QVariantList instances,
-while JSON objects are mapped to QVariantMap.")
-    (license lgpl2.1+)))
-
-(define-public libdbusmenu-qt
-  (package
-    (name "libdbusmenu-qt")
-    (version "0.9.2")
-    (source (origin
-             (method url-fetch)
-             (uri (string-append "https://launchpad.net/" name "/trunk/"
-                                 version "/+download/"
-                                 name "-" version ".tar.bz2"))
-             (sha256
-              (base32
-               "1v0ri5g9xw2z64ik0kx0ra01v8rpjn2kxprrxppkls1wvav1qv5f"))))
-    (build-system cmake-build-system)
-    (native-inputs
-     `(("doxygen" ,doxygen) ; used for static documentation
-       ("pkg-config" ,pkg-config)
-       ("qjson", qjson))) ; used for the tests
-    (inputs
-     `(("qt" ,qt-4)))
-    (arguments
-     `(#:tests? #f)) ; no check target
-    (home-page "https://launchpad.net/libdbusmenu-qt/")
-    (synopsis "Qt implementation of the DBusMenu protocol")
-    (description "The library provides a Qt implementation of the DBusMenu
-protocol.  The DBusMenu protocol makes it possible for applications to export
-and import their menus over DBus.")
-    (license lgpl2.0+)))
-
-(define-public attica
-  (package
-    (name "attica")
-    (version "0.4.2")
-    (source (origin
-             (method url-fetch)
-             (uri (string-append "http://download.kde.org/stable/"
-                                 name "/"
-                                 name "-" version ".tar.bz2"))
-             (sha256
-              (base32
-               "1y74gsyzi70dfr9d1f1b08k130rm3jaibsppg8dv5h3211vm771v"))))
-    (build-system cmake-build-system)
-    (inputs
-     `(("qt" ,qt-4)))
-    (home-page "https://projects.kde.org/projects/frameworks/attica")
-    (synopsis "Qt library for the Open Collaboration Services API")
-    (description "Attica is a Qt library that implements the Open
-Collaboration Services API version 1.6.  It grants easy access to the
-services such as querying information about persons and contents.  The
-library is used in KNewStuff3 as content provider.  In order to integrate
-with KDE's Plasma Desktop, a platform plugin exists in kdebase.")
-    (license lgpl2.1+)))
-
-(define-public strigi
-  (package
-    (name "strigi")
-    (version "0.7.8")
-    (source (origin
-             (method url-fetch)
-             (uri (string-append "http://www.vandenoever.info/software/"
-                                 name "/"
-                                 name "-" version ".tar.bz2"))
-             (sha256
-              (base32
-               "12grxzqwnvbyqw7q1gnz42lypadxmq89vk2qpxczmpmc4nk63r23"))))
+    (name "qca")
+    (version "2.1.1")
+    (source
+      (origin
+        (method url-fetch)
+        (uri (string-append "http://download.kde.org/stable/qca/" version
+                            "/src/qca-" version ".tar.xz"))
+        (sha256
+         (base32
+          "10z9icq28fww4qbzwra8d9z55ywbv74qk68nhiqfrydm21wkxplm"))))
     (build-system cmake-build-system)
     (native-inputs
      `(("pkg-config" ,pkg-config)))
-    ;; FIXME: Add optional inputs XAttr, FAM, Log4cxx
     (inputs
-     `(("clucene" ,clucene)
-       ("dbus" ,dbus)
-       ("exiv2" ,exiv2)
-       ("ffmpeg" ,ffmpeg)
-       ("libxml2" ,libxml2)
-       ("perl" ,perl)
-       ("python" ,python-wrapper)
-       ("qt" ,qt-4)
-       ("zlib" ,zlib)))
-    (arguments
-     `(#:tests? #f)) ; FIXME: Test 23/25 ProcessInputStreamTest fails.
-    (home-page "http://www.vandenoever.info/software/strigi/")
-    (synopsis "Desktop search daemon")
-    (description "Strigi is a desktop search daemon with the following
-main features:
-very fast crawling;
-very small memory footprint;
-no hammering of the system;
-pluggable backend, currently clucene and hyperestraier, sqlite3 and xapian
-are in the works;
-communication between daemon and search program over an abstract interface,
-currently a simple socket;
-simple interface for implementing plugins for extracting information;
-calculation of sha1 for every file crawled
-(allows fast finding of duplicates).")
-    (license lgpl2.0+)))
+     `(("openssl" ,openssl)
+       ("qt" ,qt)))
+    (home-page "http://delta.affinix.com/qca/")
+    (synopsis "Libraries for the Qt Cryptographic Architecture")
+    (description "The Qt Cryptographic Architecture (QCA) provides a
+straightforward and cross-platform API for a range of cryptographic features,
+including SSL/TLS, X.509 certificates, SASL, OpenPGP, S/MIME CMS, and smart
+cards.")
+    (license license:lgpl2.1)))
 
-(define-public oxygen-icons
+(define-public snorenotify
   (package
-    (name "oxygen-icons")
-    (version "4.14.2")
-    (source (origin
-             (method url-fetch)
-             (uri (string-append "http://download.kde.org/stable/" version
-                                "/src/" name "-"
-                                 version ".tar.xz"))
-             (sha256
-              (base32
-               "1mz73f54qh2vd8ibp60f6fjflrprz0lvqfkgh805l7wfhrv4ckbz"))))
+    (name "snorenotify")
+    (version "0.7.0")
+    (source
+      (origin
+        (method url-fetch)
+        (uri (string-append "http://download.kde.org/stable/snorenotify/"
+                            version "/src/snorenotify-" version ".tar.xz"))
+        (sha256
+         (base32
+          "0jz6ivk90h7iwgyxar7xzzj8yvzn6s1my6cqs9bdnwqswfk1nhbd"))))
     (build-system cmake-build-system)
     (arguments
-     `(#:tests? #f)) ; no test target
-    (home-page "http://www.kde.org/")
-    (synopsis "Oxygen icon theme for the KDE desktop")
-    (description "KDE desktop environment")
-    (license lgpl3+)))
+     `(#:tests? #f)) ; both tests fail, require display
+    (inputs
+     `(("extra-cmake-modules" ,extra-cmake-modules)
+       ("qt" ,qt)))
+    (home-page "https://techbase.kde.org/Projects/Snorenotify")
+    (synopsis "Qt notification framework")
+    (description "Snorenotify is a multi platform Qt notification framework.
+Using a plugin system it is possible to create notifications with many
+different notification systems.")
+    (license license:lgpl3)))

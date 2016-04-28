@@ -1,5 +1,5 @@
 ;;; GNU Guix --- Functional package management for GNU
-;;; Copyright © 2012, 2013, 2014, 2015 Ludovic Courtès <ludo@gnu.org>
+;;; Copyright © 2012, 2013, 2014, 2015, 2016 Ludovic Courtès <ludo@gnu.org>
 ;;;
 ;;; This file is part of GNU Guix.
 ;;;
@@ -195,6 +195,41 @@
          (equal? (list t2) (referrers %store t1))
          (null? (references %store t1))
          (null? (referrers %store t2)))))
+
+(test-assert "references/substitutes missing reference info"
+  (with-store s
+    (set-build-options s #:use-substitutes? #f)
+    (guard (c ((nix-protocol-error? c) #t))
+      (let* ((b  (add-to-store s "bash" #t "sha256"
+                               (search-bootstrap-binary "bash"
+                                                        (%current-system))))
+             (d  (derivation s "the-thing" b '("--help")
+                             #:inputs `((,b)))))
+        (references/substitutes s (list (derivation->output-path d) b))))))
+
+(test-assert "references/substitutes with substitute info"
+  (with-store s
+    (set-build-options s #:use-substitutes? #t)
+    (let* ((t1 (add-text-to-store s "random1" (random-text)))
+           (t2 (add-text-to-store s "random2" (random-text)
+                                  (list t1)))
+           (t3 (add-text-to-store s "build" "echo -n $t2 > $out"))
+           (b  (add-to-store s "bash" #t "sha256"
+                             (search-bootstrap-binary "bash"
+                                                      (%current-system))))
+           (d  (derivation s "the-thing" b `("-e" ,t3)
+                           #:inputs `((,b) (,t3) (,t2))
+                           #:env-vars `(("t2" . ,t2))))
+           (o  (derivation->output-path d)))
+      (with-derivation-narinfo d
+        (sha256 => (sha256 (string->utf8 t2)))
+        (references => (list t2))
+
+        (equal? (references/substitutes s (list o t3 t2 t1))
+                `((,t2)                           ;refs of O
+                  ()                              ;refs of T3
+                  (,t1)                           ;refs of T2
+                  ()))))))                        ;refs of T1
 
 (test-assert "requisites"
   (let* ((t1 (add-text-to-store %store "random1"
@@ -415,7 +450,11 @@
            (with-store s                        ;the right one again
              (set-build-options s #:use-substitutes? #t
                                 #:substitute-urls (%test-substitute-urls))
-             (has-substitutes? s o))))))
+             (has-substitutes? s o))
+           (with-store s                        ;empty list of URLs
+             (set-build-options s #:use-substitutes? #t
+                                #:substitute-urls '())
+             (not (has-substitutes? s o)))))))
 
 (test-assert "substitute"
   (with-store s
@@ -837,6 +876,15 @@
          (file (add %store "foo" "Lowered.")))
     (call-with-input-file file get-string-all)))
 
+(test-equal "current-system"
+  "bar"
+  (parameterize ((%current-system "frob"))
+    (run-with-store %store
+      (mbegin %store-monad
+        (set-current-system "bar")
+        (current-system))
+      #:system "foo")))
+
 (test-assert "query-path-info"
   (let* ((ref (add-text-to-store %store "ref" "foo"))
          (item (add-text-to-store %store "item" "bar" (list ref)))
@@ -846,6 +894,21 @@
                  (sha256
                   (string->utf8
                    (call-with-output-string (cut write-file item <>))))))))
+
+(test-assert "path-info-deriver"
+  (let* ((b (add-text-to-store %store "build" "echo $foo > $out" '()))
+         (s (add-to-store %store "bash" #t "sha256"
+                          (search-bootstrap-binary "bash"
+                                                   (%current-system))))
+         (d (derivation %store "the-thing"
+                        s `("-e" ,b)
+                        #:env-vars `(("foo" . ,(random-text)))
+                        #:inputs `((,b) (,s))))
+         (o (derivation->output-path d)))
+    (and (build-derivations %store (list d))
+         (not (path-info-deriver (query-path-info %store b)))
+         (string=? (derivation-file-name d)
+                   (path-info-deriver (query-path-info %store o))))))
 
 (test-end "store")
 

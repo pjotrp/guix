@@ -1,7 +1,7 @@
 ;;; GNU Guix --- Functional package management for GNU
 ;;; Copyright © 2013, 2014, 2015, 2016 Ludovic Courtès <ludo@gnu.org>
 ;;; Copyright © 2015 Mark H Weaver <mhw@netris.org>
-;;; Copyright © 2015 Alex Kost <alezost@gmail.com>
+;;; Copyright © 2015, 2016 Alex Kost <alezost@gmail.com>
 ;;;
 ;;; This file is part of GNU Guix.
 ;;;
@@ -40,6 +40,7 @@
   #:use-module (gnu packages lsof)
   #:use-module (gnu packages gawk)
   #:use-module (gnu packages man)
+  #:use-module (gnu packages texinfo)
   #:use-module (gnu packages compression)
   #:use-module (gnu packages firmware)
   #:autoload   (gnu packages cryptsetup) (cryptsetup)
@@ -359,10 +360,12 @@ explicitly appear in OS."
 
          ;; wireless-tools is deprecated in favor of iw, but it's still what
          ;; many people are familiar with, so keep it around.
-         iw wireless-tools
+         iw wireless-tools rfkill
 
+         iproute
          net-tools                        ; XXX: remove when Inetutils suffices
          man-db
+         info-reader                     ;the standalone Info reader (no Perl)
 
          ;; The 'sudo' command is already in %SETUID-PROGRAMS, but we also
          ;; want the other commands and the man pages (notably because
@@ -371,7 +374,7 @@ explicitly appear in OS."
 
          ;; Get 'insmod' & co. from kmod, not module-init-tools, since udev
          ;; already depends on it anyway.
-         kmod eudev-with-blkid
+         kmod eudev
 
          e2fsprogs kbd
 
@@ -397,37 +400,11 @@ This is the GNU system.  Welcome.\n")
   "Return the default /etc/hosts file."
   (plain-file "hosts" (local-host-aliases host-name)))
 
-(define (emacs-site-file)
-  "Return the Emacs 'site-start.el' file.  That file contains the necessary
-settings for 'guix.el' to work out-of-the-box."
-  (scheme-file "site-start.el"
-               #~(progn
-                  ;; Add the "normal" elisp directory to the search path;
-                  ;; guix.el may be there.
-                  (add-to-list
-                   'load-path
-                   "/run/current-system/profile/share/emacs/site-lisp")
-
-                  ;; Attempt to load guix.el.
-                  (require 'guix-init nil t)
-
-                  ;; Attempt to load geiser.
-                  (require 'geiser-install nil t))))
-
-(define (emacs-site-directory)
-  "Return the Emacs site directory, aka. /etc/emacs."
-  (computed-file "emacs"
-                 #~(begin
-                     (mkdir #$output)
-                     (chdir #$output)
-                     (symlink #$(emacs-site-file) "site-start.el"))))
-
 (define* (operating-system-etc-service os)
   "Return a <service> that builds containing the static part of the /etc
 directory."
   (let ((login.defs (plain-file "login.defs" "# Empty for now.\n"))
 
-        (emacs      (emacs-site-directory))
         (issue      (plain-file "issue" (operating-system-issue os)))
         (nsswitch   (plain-file "nsswitch.conf"
                                 (name-service-switch->string
@@ -475,6 +452,9 @@ then
   export `cat /etc/environment | cut -d= -f1`
 fi
 
+# Set the umask, notably for users logging in via 'lsh'.
+# See <http://bugs.gnu.org/22650>.
+umask 022
 
 # Allow GStreamer-based applications to find plugins.
 export GST_PLUGIN_PATH=\"$HOME/.guix-profile/lib/gstreamer-1.0\"
@@ -501,7 +481,6 @@ fi\n")))
      `(("services" ,#~(string-append #$net-base "/etc/services"))
        ("protocols" ,#~(string-append #$net-base "/etc/protocols"))
        ("rpc" ,#~(string-append #$net-base "/etc/rpc"))
-       ("emacs" ,#~#$emacs)
        ("login.defs" ,#~#$login.defs)
        ("issue" ,#~#$issue)
        ("nsswitch.conf" ,#~#$nsswitch)
@@ -581,10 +560,6 @@ use 'plain-file' instead~%")
     ("SSL_CERT_DIR" . "/etc/ssl/certs")
     ("SSL_CERT_FILE" . "/etc/ssl/certs/ca-certificates.crt")
     ("GIT_SSL_CAINFO" . "/etc/ssl/certs/ca-certificates.crt")
-    ;; Prepend the directory of 'site-start.el' to the search path, so
-    ;; that it has higher precedence than the 'site-start.el' file our
-    ;; Emacs package provides.
-    ("EMACSLOADPATH" . "/etc/emacs:")
     ;; By default, applications that use D-Bus, such as Emacs, abort at startup
     ;; when /etc/machine-id is missing.  Make sure these warnings are non-fatal.
     ("DBUS_FATAL_WARNINGS" . "0")))
@@ -667,18 +642,31 @@ hardware-related operations as necessary when booting a Linux container."
                                            #:mapped-devices mapped-devices)))
     (return #~(string-append #$initrd "/initrd"))))
 
+(define (locale-name->definition* name)
+  "Variant of 'locale-name->definition' that raises an error upon failure."
+  (match (locale-name->definition name)
+    (#f
+     (raise (condition
+             (&message
+              (message (format #f (_ "~a: invalid locale name") name))))))
+    (def def)))
+
 (define (operating-system-locale-directory os)
   "Return the directory containing the locales compiled for the definitions
 listed in OS.  The C library expects to find it under
 /run/current-system/locale."
-  ;; While we're at it, check whether the locale of OS is defined.
-  (unless (member (operating-system-locale os)
-                  (map locale-definition-name
-                       (operating-system-locale-definitions os)))
-    (raise (condition
-            (&message (message "system locale lacks a definition")))))
+  (define name
+    (operating-system-locale os))
 
-  (locale-directory (operating-system-locale-definitions os)
+  (define definitions
+    ;; While we're at it, check whether NAME is defined and add it if needed.
+    (if (member name (map locale-definition-name
+                          (operating-system-locale-definitions os)))
+        (operating-system-locale-definitions os)
+        (cons (locale-name->definition* name)
+              (operating-system-locale-definitions os))))
+
+  (locale-directory definitions
                     #:libcs (operating-system-locale-libcs os)))
 
 (define (kernel->grub-label kernel)
@@ -686,7 +674,7 @@ listed in OS.  The C library expects to find it under
   (string-append "GNU with "
                  (string-titlecase (package-name kernel)) " "
                  (package-version kernel)
-                 " (alpha)"))
+                 " (beta)"))
 
 (define (store-file-system file-systems)
   "Return the file system object among FILE-SYSTEMS that contains the store."

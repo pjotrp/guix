@@ -7,6 +7,7 @@
 ;;; Copyright © 2016 Eric Bavier <bavier@member.fsf.org>
 ;;; Copyright © 2016 Leo Famulari <leo@famulari.name>
 ;;; Copyright © 2016 Fabian Harfert <fhmgufs@web.de>
+;;; Copyright © 2016 Rene Saavedra <rennes@openmailbox.org>
 ;;;
 ;;; This file is part of GNU Guix.
 ;;;
@@ -27,13 +28,13 @@
   #:use-module (srfi srfi-9)
   #:export (license? license-name license-uri license-comment
             agpl3 agpl3+
-            asl2.0
+            asl1.1 asl2.0
             boost1.0
             bsd-2 bsd-3 bsd-4
             non-copyleft
             bsd-style                             ;deprecated!
             cc0
-            cc-by-sa4.0 cc-by-sa3.0 cc-by3.0
+            cc-by2.0 cc-by3.0 cc-by-sa2.0 cc-by-sa3.0 cc-by-sa4.0
             cddl1.0
             cecill-c
             artistic2.0 clarified-artistic
@@ -59,10 +60,12 @@
             openldap2.8 openssl
             psfl public-domain
             qpl
+            repoze
             ruby
             sgifreeb2.0
             silofl1.1
             sleepycat
+            tcl/tk
             unlicense
             vim
             x11 x11-style
@@ -96,6 +99,11 @@
   (license "AGPL 3+"
            "https://gnu.org/licenses/agpl.html"
            "https://gnu.org/licenses/why-affero-gpl.html"))
+
+(define asl1.1
+  (license "ASL 1.1"
+           "http://directory.fsf.org/wiki/License:Apache1.1"
+           "https://www.gnu.org/licenses/license-list#apache1"))
 
 (define asl2.0
   (license "ASL 2.0"
@@ -154,10 +162,20 @@ at URI, which may be a file:// URI pointing the package's tree."
            "http://creativecommons.org/licenses/by-sa/3.0/"
            "Creative Commons Attribution-ShareAlike 3.0 Unported"))
 
+(define cc-by-sa2.0
+  (license "CC-BY-SA 2.0"
+           "http://creativecommons.org/licenses/by-sa/2.0/"
+           "Creative Commons Attribution-ShareAlike 2.0 Generic"))
+
 (define cc-by3.0
   (license "CC-BY 3.0"
            "http://creativecommons.org/licenses/by/3.0/"
            "Creative Commons Attribution 3.0 Unported"))
+
+(define cc-by2.0
+  (license "CC-BY 2.0"
+           "http://creativecommons.org/licenses/by/2.0/"
+           "Creative Commons Attribution 2.0 Generic"))
 
 (define cddl1.0
   (license "CDDL 1.0"
@@ -368,6 +386,12 @@ at URI, which may be a file:// URI pointing the package's tree."
            "http://directory.fsf.org/wiki/License:QPLv1.0"
            "http://www.gnu.org/licenses/license-list.html#QPL"))
 
+(define repoze
+  (license "Repoze"
+           "http://repoze.org/LICENSE.txt"
+           "A BSD-like license with a clause requiring all changes to be
+           attributed by author and date."))
+
 (define ruby
   (license "Ruby License"
            "http://directory.fsf.org/wiki/License:Ruby"
@@ -387,6 +411,11 @@ at URI, which may be a file:// URI pointing the package's tree."
   (license "Sleepycat"
            "http://directory.fsf.org/wiki/License:Sleepycat"
            "https://www.gnu.org/licenses/license-list#BerkeleyDB"))
+
+(define tcl/tk
+  (license "Tcl/Tk"
+           "http://www.tcl.tk/software/tcltk/license.html"
+           "A non-copyleft free software license from the Tcl/Tk project"))
 
 (define vim
   (license "Vim"

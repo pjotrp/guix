@@ -1,6 +1,8 @@
 ;;; GNU Guix --- Functional package management for GNU
 ;;; Copyright © 2014, 2015 Sou Bunnbu <iyzsong@gmail.com>
 ;;; Copyright © 2014, 2015 Mark H Weaver <mhw@netris.org>
+;;; Copyright © 2016 Andreas Enge <andreas@enge.fr>
+;;; Copyright © 2016 Florian Paul Schmidt <mista.tapas@gmx.net>
 ;;;
 ;;; This file is part of GNU Guix.
 ;;;
@@ -23,7 +25,7 @@
   #:use-module (guix download)
   #:use-module (guix utils)
   #:use-module (guix build-system gnu)
-  #:use-module (guix build-system glib-or-gtk)
+  #:use-module (guix build-system trivial)
   #:use-module (gnu packages)
   #:use-module (gnu packages pkg-config)
   #:use-module (gnu packages glib)
@@ -281,8 +283,8 @@ management D-Bus specification.")
      `(("libxfce4util" ,libxfce4util))) ; required by libxfce4panel-1.0.pc
     (inputs
      `(("exo" ,exo)
-       ("garcon", garcon)
-       ("libwnck" ,libwnck-1)
+       ("garcon" ,garcon)
+       ("libwnck" ,libwnck-2)
        ("libxfce4ui" ,libxfce4ui)))
     (native-search-paths
      (list (search-path-specification
@@ -387,6 +389,44 @@ to an auto mixer tool like pavucontrol.  It can optionally handle multimedia
 keys for controlling the audio volume.")
     (license gpl2+)))
 
+(define-public xfce4-xkb-plugin
+  (package
+    (name "xfce4-xkb-plugin")
+    (version "0.7.1")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "http://archive.xfce.org/src/panel-plugins/"
+                                  name "/" (version-major+minor version) "/"
+                                  name "-" version ".tar.bz2"))
+              (sha256
+               (base32
+                "10g65j5ia389ahhn3b9hr52ghpp0817fk0m60rfrv4wrzqrjxzk1"))))
+    (build-system gnu-build-system)
+    (native-inputs
+     `(("intltool" ,intltool)
+       ("pkg-config" ,pkg-config)))
+    (inputs
+     `(("garcon" ,garcon)
+       ("librsvg" ,librsvg)
+       ("libwnck" ,libwnck-2)
+       ("libx11" ,libx11)
+       ("libxfce4ui" ,libxfce4ui)
+       ("libxklavier" ,libxklavier)
+       ("xfce4-panel" ,xfce4-panel)))
+    (home-page "http://git.xfce.org/panel-plugins/xfce4-xkb-plugin/")
+    (synopsis "XKB layout switching panel plug-in for Xfce")
+    (description
+     "Xfce XKB plugin makes it possible to set up and use multiple
+keyboard layouts.
+
+One can choose the keyboard model, what key combination to
+use to switch between the layouts, the actual keyboard layouts,
+the way in which the current layout is being displayed (country
+flag image or text) and the layout policy, which is whether to
+store the layout globally (for all windows), per application or
+per window.")
+    (license bsd-2)))
+
 (define-public xfce4-appfinder
   (package
     (name "xfce4-appfinder")
@@ -449,7 +489,7 @@ your system in categories, so you can quickly find and launch them.")
        ("upower" ,upower)
        ("polkit" ,polkit)
        ("libsm" ,libsm)
-       ("libwnck" ,libwnck-1)
+       ("libwnck" ,libwnck-2)
        ("libxfce4ui" ,libxfce4ui)))
     (home-page "http://www.xfce.org/")
     (synopsis "Xfce session manager")
@@ -480,7 +520,7 @@ allows you to shutdown the computer from Xfce.")
      `(("exo" ,exo)
        ("garcon" ,garcon)
        ("libnotify" ,libnotify)
-       ("libxcursor", libxcursor)
+       ("libxcursor" ,libxcursor)
        ("libxi" ,libxi)
        ("libxklavier" ,libxklavier)
        ("libxrandr" ,libxrandr)
@@ -573,7 +613,7 @@ and import the new pictures from your camera.")
        ("intltool" ,intltool)))
     (inputs
      `(("libdrm" ,libdrm)
-       ("libwnck" ,libwnck-1)
+       ("libwnck" ,libwnck-2)
        ("libxcomposite" ,libxcomposite)
        ("libxdamage" ,libxdamage)
        ("libxfce4ui" ,libxfce4ui)
@@ -605,7 +645,7 @@ on the screen.")
      `(("exo" ,exo)
        ("garcon" ,garcon)
        ("libnotify" ,libnotify)
-       ("libwnck" ,libwnck-1)
+       ("libwnck" ,libwnck-2)
        ("libxfce4ui" ,libxfce4ui)
        ("thunar" ,thunar)))
     (home-page "http://www.xfce.org/")
@@ -651,29 +691,8 @@ on your desktop.")
     (name "xfce")
     (version (package-version xfce4-session))
     (source #f)
-    (build-system glib-or-gtk-build-system)
-    (arguments
-     '(#:modules ((guix build gnu-build-system)
-                  (guix build glib-or-gtk-build-system)
-                  (guix build utils)
-                  (srfi srfi-26))
-       #:phases
-       (alist-replace
-        'install
-        (lambda* (#:key outputs #:allow-other-keys)
-          (let* ((out  (assoc-ref outputs "out"))
-                 (bin  (string-append out "/bin"))
-                 (prog (string-append bin "/startxfce4")))
-            (mkdir-p bin)
-            (symlink (string-append
-                      (assoc-ref %build-inputs "xfce4-session")
-                      "/bin/startxfce4")
-                     prog)
-            (wrap-program prog
-              ;; For xfce4-panel plugins.
-              `("X_XFCE4_LIB_DIRS" = ,(list (getenv "X_XFCE4_LIB_DIRS"))))))
-        (map (cut assq <> %standard-phases)
-             '(set-paths install glib-or-gtk-wrap)))))
+    (build-system trivial-build-system)
+    (arguments '(#:builder (mkdir %output)))
     (propagated-inputs
      `(("exo"                  ,exo)
        ("garcon"               ,garcon)
@@ -686,6 +705,7 @@ on your desktop.")
        ("tumlber"              ,tumbler)
        ("xfce4-appfinder"      ,xfce4-appfinder)
        ("xfce4-panel"          ,xfce4-panel)
+       ("xfce4-power-manager"  ,xfce4-power-manager)
        ("xfce4-session"        ,xfce4-session)
        ("xfce4-settings"       ,xfce4-settings)
        ("xfce4-terminal"       ,xfce4-terminal)
@@ -695,10 +715,45 @@ on your desktop.")
        ;; Panel plugins.
        ("xfce4-battery-plugin"    ,xfce4-battery-plugin)
        ("xfce4-clipman-plugin"    ,xfce4-clipman-plugin)
-       ("xfce4-pulseaudio-plugin" ,xfce4-pulseaudio-plugin)))
+       ("xfce4-pulseaudio-plugin" ,xfce4-pulseaudio-plugin)
+       ("xfce4-xkb-plugin" ,xfce4-xkb-plugin)))
     (home-page "http://www.xfce.org/")
     (synopsis "Desktop environment (meta-package)")
     (description
      "Xfce is a lightweight desktop environment.  It aims to be fast and low on
 system resources, while still being visually appealing and user friendly.")
+    (license gpl2+)))
+
+(define-public xfce4-power-manager
+  (package
+    (name "xfce4-power-manager")
+    (version "1.4.3")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "http://archive.xfce.org/xfce/4.12"
+                                  "/src/" name "-" version ".tar.bz2"))
+              (sha256
+               (base32
+                "04909sfc2nrj2wg9cw6y9y2r9yrp3l3vc201sy1gaiap67fi33h1"))))
+    (build-system gnu-build-system)
+    (arguments
+     '(#:configure-flags '("--enable-gtk3")))
+    (native-inputs
+     `(("pkg-config" ,pkg-config)
+       ("intltool" ,intltool)))
+    (inputs
+     `(("lbxrandr" ,libxrandr)
+       ("upower" ,upower)
+       ("libnotify" ,libnotify)
+       ("libxfce4ui" ,libxfce4ui)))
+    (home-page "http://www.xfce.org/")
+    (synopsis "Xfce Power Manager")
+    (description
+     "This is a power manager for the Xfce desktop.  It manages the power
+sources on the computer and the devices that can be controlled to reduce their
+power consumption (such as LCD brightness level, monitor sleep, CPU frequency
+scaling, etc).  In addition, xfce4-power-manager provides a set of
+freedesktop-compliant DBus interfaces to inform other applications about current
+power level so that they can adjust their power consumption, and it provides the
+inhibit interface which allows applications to prevent automatic sleep.")
     (license gpl2+)))

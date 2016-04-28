@@ -2,7 +2,7 @@
 ;;; Copyright © 2012, 2013, 2014, 2015, 2016 Ludovic Courtès <ludo@gnu.org>
 ;;; Copyright © 2013 Nikita Karetnikov <nikita@karetnikov.org>
 ;;; Copyright © 2013, 2015 Mark H Weaver <mhw@netris.org>
-;;; Copyright © 2014 Alex Kost <alezost@gmail.com>
+;;; Copyright © 2014, 2016 Alex Kost <alezost@gmail.com>
 ;;;
 ;;; This file is part of GNU Guix.
 ;;;
@@ -22,6 +22,7 @@
 (define-module (guix scripts package)
   #:use-module (guix ui)
   #:use-module (guix store)
+  #:use-module (guix grafts)
   #:use-module (guix derivations)
   #:use-module (guix packages)
   #:use-module (guix profiles)
@@ -319,6 +320,7 @@ ENTRIES, a list of manifest entries, in the context of PROFILE."
   ;; Alist of default option values.
   `((max-silent-time . 3600)
     (verbosity . 0)
+    (graft? . #t)
     (substitutes? . #t)))
 
 (define (show-help)
@@ -551,10 +553,6 @@ upgrading, #f otherwise."
 (define (options->installable opts manifest)
   "Given MANIFEST, the current manifest, and OPTS, the result of 'args-fold',
 return the new list of manifest entries."
-  (define (package->manifest-entry* package output)
-    (check-package-freshness package)
-    (package->manifest-entry package output))
-
   (define upgrade?
     (options->upgrade-predicate opts))
 
@@ -567,7 +565,7 @@ return the new list of manifest entries."
                           (call-with-values
                               (lambda ()
                                 (specification->package+output name output))
-                            package->manifest-entry*))))
+                            package->manifest-entry))))
                   (_ #f))
                 (manifest-entries manifest)))
 
@@ -576,13 +574,13 @@ return the new list of manifest entries."
                   (('install . (? package? p))
                    ;; When given a package via `-e', install the first of its
                    ;; outputs (XXX).
-                   (package->manifest-entry* p "out"))
+                   (package->manifest-entry p "out"))
                   (('install . (? string? spec))
                    (if (store-path? spec)
                        (store-item->manifest-entry spec)
                        (let-values (((package output)
                                      (specification->package+output spec)))
-                         (package->manifest-entry* package output))))
+                         (package->manifest-entry package output))))
                   (_ #f))
                 opts))
 
@@ -841,7 +839,8 @@ processed, #f otherwise."
                                   #:argument-handler handle-argument)))
     (with-error-handling
       (or (process-query opts)
-          (parameterize ((%store (open-connection)))
+          (parameterize ((%store  (open-connection))
+                         (%graft? (assoc-ref opts 'graft?)))
             (set-build-options-from-command-line (%store) opts)
 
             (parameterize ((%guile-for-build

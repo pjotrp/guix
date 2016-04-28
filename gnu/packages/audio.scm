@@ -1,5 +1,5 @@
 ;;; GNU Guix --- Functional package management for GNU
-;;; Copyright © 2015 Ricardo Wurmus <rekado@elephly.net>
+;;; Copyright © 2015, 2016 Ricardo Wurmus <rekado@elephly.net>
 ;;; Copyright © 2015 Taylan Ulrich Bayırlı/Kammer <taylanbayirli@gmail.com>
 ;;; Copyright © 2015 Andreas Enge <andreas@enge.fr>
 ;;; Copyright © 2015 Alex Kost <alezost@gmail.com>
@@ -30,6 +30,7 @@
   #:use-module (guix build-system waf)
   #:use-module (guix build-system trivial)
   #:use-module (guix build-system cmake)
+  #:use-module (guix build-system python)
   #:use-module (gnu packages)
   #:use-module (gnu packages algebra)
   #:use-module (gnu packages autotools)
@@ -79,6 +80,17 @@
                (base32
                 "1azbrhpfk4nnybr7kgmc7w6al6xnzppg853vas8gmkh185kk11l0"))))
     (build-system gnu-build-system)
+    (arguments
+     `(#:configure-flags '("--enable-qt5")
+       #:phases
+       (modify-phases %standard-phases
+         ;; Insert an extra space between linker flags.
+         (add-before 'configure 'add-missing-space
+           (lambda _
+             (substitute* "configure"
+               (("LIBS\\+=\\$LIBSsave") "LIBS+=\" $LIBSsave\"")
+               (("CFLAGS\\+=\\$CFLAGSsave") "CFLAGS+=\" $CFLAGSsave\""))
+             #t)))))
     (inputs
      `(("alsa-lib" ,alsa-lib)
        ;; We cannot use zita-alsa-pcmi (the successor of clalsadrv) due to
@@ -88,7 +100,7 @@
        ("jack" ,jack-1)
        ("ladspa" ,ladspa)
        ("liblo" ,liblo)
-       ("qt" ,qt-4)))
+       ("qt" ,qt)))
     (native-inputs
      `(("pkg-config" ,pkg-config)))
     (home-page "http://alsamodular.sourceforge.net/")
@@ -158,24 +170,24 @@ streams from live audio.")
 (define-public ardour
   (package
     (name "ardour")
-    (version "4.4")
+    (version "4.7")
     (source (origin
               (method git-fetch)
               (uri (git-reference
                     (url "git://git.ardour.org/ardour/ardour.git")
                     (commit version)))
               (snippet
-               ;; Ardour expects this file to exist at build time.  It can be
-               ;; created from a git checkout with:
-               ;;   ./waf create_stored_revision
+               ;; Ardour expects this file to exist at build time.  The revision
+               ;; is the output of
+               ;;    git describe HEAD | sed 's/^[A-Za-z]*+//'
                '(call-with-output-file
                     "libs/ardour/revision.cc"
                   (lambda (port)
                     (format port "#include \"ardour/revision.h\"
-namespace ARDOUR { const char* revision = \"4.4-210-ga4daf93\" ; }"))))
+namespace ARDOUR { const char* revision = \"4.7-219-g0e36f8e\" ; }"))))
               (sha256
                (base32
-                "1gnrcnq2ksnh7fsa301v1c4p5dqrbqpjylf02rg3za3ab58wxi7l"))
+                "149gswphz77m3pkzsn2nqbm6yvcfa3fva560bcvjzlgb73f64q5l"))
               (file-name (string-append name "-" version))))
     (build-system waf-build-system)
     (arguments
@@ -392,6 +404,319 @@ language and software synthesizer.")
     (description
      "clalsadrv is a C++ wrapper around the ALSA API simplifying access to
 ALSA PCM devices.")
+    (license license:gpl2+)))
+
+(define-public amb-plugins
+  (package
+    (name "amb-plugins")
+    (version "0.8.1")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append
+                    "http://kokkinizita.linuxaudio.org"
+                    "/linuxaudio/downloads/AMB-plugins-"
+                    version ".tar.bz2"))
+              (sha256
+               (base32
+                "0x4blm4visjqj0ndqr0cg776v3b7lvplpc8cgi9n51llhavn0jpl"))))
+    (build-system gnu-build-system)
+    (arguments
+     `(#:tests? #f ; no "check" target
+       #:phases
+       (modify-phases %standard-phases
+         ;; no configure script
+         (delete 'configure)
+         (add-before 'install 'prepare-target-directory
+           (lambda* (#:key outputs #:allow-other-keys)
+             (mkdir-p (string-append (assoc-ref outputs "out") "/lib/ladspa"))
+             #t))
+         (add-after 'unpack 'override-target-directory-and-tool-paths
+           (lambda* (#:key outputs #:allow-other-keys)
+             (substitute* "Makefile"
+               (("/usr/lib/ladspa")
+                (string-append (assoc-ref outputs "out") "/lib/ladspa"))
+               (("/usr/bin/install") (which "install"))
+               (("/bin/rm") "#"))
+             #t)))))
+    (home-page "http://kokkinizita.linuxaudio.org")
+    (synopsis "LADSPA ambisonics plugins")
+    (description
+     "The AMB plugins are a set of LADSPA ambisonics plugins, mainly to be
+used within Ardour.  Features include: mono and stereo to B-format panning,
+horizontal rotator, square, hexagon and cube decoders.")
+    (license license:gpl2+)))
+
+(define-public mcp-plugins
+  (package
+    (name "mcp-plugins")
+    (version "0.4.0")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append
+                    "http://kokkinizita.linuxaudio.org"
+                    "/linuxaudio/downloads/MCP-plugins-"
+                    version ".tar.bz2"))
+              (sha256
+               (base32
+                "06a9r1l85jmg7l1cvc3788mk8ra0xagjfy1rmhw3b80y4n0vlnvc"))))
+    (build-system gnu-build-system)
+    (arguments
+     `(#:tests? #f ; no "check" target
+       #:phases
+       (modify-phases %standard-phases
+         ;; no configure script
+         (delete 'configure)
+         (add-before 'install 'prepare-target-directory
+           (lambda* (#:key outputs #:allow-other-keys)
+             (mkdir-p (string-append (assoc-ref outputs "out") "/lib/ladspa"))
+             #t))
+         (add-after 'unpack 'override-target-directory
+           (lambda* (#:key outputs #:allow-other-keys)
+             (substitute* "Makefile"
+               (("/usr") (assoc-ref outputs "out")))
+             #t)))))
+    (home-page "http://kokkinizita.linuxaudio.org")
+    (synopsis "Chorus, phaser, and vintage high-pass and low-pass filters")
+    (description
+     "This package provides various LADSPA plugins.  @code{cs_chorus} and
+@code{cs_phaser} provide chorus and phaser effects, respectively;
+@code{mvclpf24} provides four implementations of the low-pass filter used in
+vintage Moog synthesizers; @code{mvchpf24} is based on the voltage-controlled
+high-pass filter by Robert Moog.  The filters attempt to accurately emulate
+the non-linear circuit elements of their original analog counterparts.")
+    (license license:gpl2+)))
+
+(define-public rev-plugins
+  (package
+    (name "rev-plugins")
+    (version "0.7.1")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append
+                    "http://kokkinizita.linuxaudio.org"
+                    "/linuxaudio/downloads/REV-plugins-"
+                    version ".tar.bz2"))
+              (sha256
+               (base32
+                "1ikpinxm00pkfi259bnkzhsy3miagrjgdihaaf5x4v7zac29j3g7"))))
+    (build-system gnu-build-system)
+    (arguments
+     `(#:tests? #f ; no "check" target
+       #:phases
+       (modify-phases %standard-phases
+         ;; no configure script
+         (delete 'configure)
+         (add-before 'install 'prepare-target-directory
+           (lambda* (#:key outputs #:allow-other-keys)
+             (mkdir-p (string-append (assoc-ref outputs "out") "/lib/ladspa"))
+             #t))
+         (add-after 'unpack 'override-target-directory
+           (lambda* (#:key outputs #:allow-other-keys)
+             (substitute* "Makefile"
+               (("/usr") (assoc-ref outputs "out")))
+             #t)))))
+    (home-page "http://kokkinizita.linuxaudio.org")
+    (synopsis "LADSPA reverb plugin")
+    (description
+     "This package provides a stereo reverb LADSPA plugin based on the
+well-known greverb.")
+    (license license:gpl2+)))
+
+(define-public fil-plugins
+  (package
+    (name "fil-plugins")
+    (version "0.3.0")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append
+                    "http://kokkinizita.linuxaudio.org"
+                    "/linuxaudio/downloads/FIL-plugins-"
+                    version ".tar.bz2"))
+              (sha256
+               (base32
+                "1scfv9j7jrp50r565haa4rvxn1vk2ss86xssl5qgcr8r45qz42qw"))))
+    (build-system gnu-build-system)
+    (arguments
+     `(#:tests? #f ; no "check" target
+       #:phases
+       (modify-phases %standard-phases
+         ;; no configure script
+         (delete 'configure)
+         (add-before 'install 'prepare-target-directory
+           (lambda* (#:key outputs #:allow-other-keys)
+             (mkdir-p (string-append (assoc-ref outputs "out") "/lib/ladspa"))
+             #t))
+         (add-after 'unpack 'override-target-directory
+           (lambda* (#:key outputs #:allow-other-keys)
+             (substitute* "Makefile"
+               (("/usr") (assoc-ref outputs "out")))
+             #t)))))
+    (home-page "http://kokkinizita.linuxaudio.org")
+    (synopsis "LADSPA four-band parametric equalizer plugin")
+    (description
+     "This package provides a LADSPA plugin for a four-band parametric
+equalizer.  Each section has an active/bypass switch, frequency, bandwidth and
+gain controls.  There is also a global bypass switch and gain control.
+
+The 2nd order resonant filters are implemented using a Mitra-Regalia style
+lattice filter, which is stable even while parameters are being changed.
+
+All switches and controls are internally smoothed, so they can be used 'live'
+without any clicks or zipper noises.  This makes this plugin suitable for use
+in systems that allow automation of plugin control ports, such as Ardour, or
+for stage use.")
+    (license license:gpl2+)))
+
+(define-public ste-plugins
+  (package
+    (name "ste-plugins")
+    (version "0.0.2")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append
+                    "http://kokkinizita.linuxaudio.org"
+                    "/linuxaudio/downloads/STE-plugins-"
+                    version ".tar.bz2"))
+              (sha256
+               (base32
+                "0s3c9w5xihs87cnd1lh9xgj3maabjdyh6bl766qp5lhkg3ax8zy6"))))
+    (build-system gnu-build-system)
+    (arguments
+     `(#:tests? #f ; no "check" target
+       #:phases
+       (modify-phases %standard-phases
+         ;; no configure script
+         (delete 'configure)
+         (add-before 'install 'prepare-target-directory
+           (lambda* (#:key outputs #:allow-other-keys)
+             (mkdir-p (string-append (assoc-ref outputs "out") "/lib/ladspa"))
+             #t))
+         (add-after 'unpack 'override-target-directory
+           (lambda* (#:key outputs #:allow-other-keys)
+             (substitute* "Makefile"
+               (("/usr") (assoc-ref outputs "out")))
+             #t)))))
+    (home-page "http://kokkinizita.linuxaudio.org")
+    (synopsis "LADSPA stereo width plugin")
+    (description
+     "This package provides a LADSPA plugin to manipulate the stereo width of
+audio signals.")
+    (license license:gpl2+)))
+
+(define-public vco-plugins
+  (package
+    (name "vco-plugins")
+    (version "0.3.0")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append
+                    "http://kokkinizita.linuxaudio.org"
+                    "/linuxaudio/downloads/VCO-plugins-"
+                    version ".tar.bz2"))
+              (sha256
+               (base32
+                "1xzqdg3b07r7zww05y9bb737l9dxvfkv28m3fyak1aazaci3rsgl"))))
+    (build-system gnu-build-system)
+    (arguments
+     `(#:tests? #f ; no "check" target
+       #:phases
+       (modify-phases %standard-phases
+         ;; no configure script
+         (delete 'configure)
+         (add-before 'install 'prepare-target-directory
+           (lambda* (#:key outputs #:allow-other-keys)
+             (mkdir-p (string-append (assoc-ref outputs "out") "/lib/ladspa"))
+             #t))
+         (add-after 'unpack 'override-target-directory
+           (lambda* (#:key outputs #:allow-other-keys)
+             (substitute* "Makefile"
+               (("/usr") (assoc-ref outputs "out"))
+               (("/bin/cp") (which "cp")))
+             #t)))))
+    (home-page "http://kokkinizita.linuxaudio.org")
+    (synopsis "LADSPA plugin for synthesizer oscillators")
+    (description
+     "The @code{blvco} LADSPA plugin provides three anti-aliased oscillators:
+
+@enumerate
+@item Pulse-VCO, a dirac pulse oscillator with flat amplitude spectrum
+@item Saw-VCO, a sawtooth oscillator with 1/F amplitude spectrum
+@item Rec-VCO, a square / rectange oscillator
+@end enumerate\n
+
+All oscillators are low-pass filtered to provide waveforms similar to the
+output of analog synthesizers such as the Moog Voyager.")
+    (license license:gpl2+)))
+
+(define-public wah-plugins
+  (package
+    (name "wah-plugins")
+    (version "0.1.0")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append
+                    "http://kokkinizita.linuxaudio.org"
+                    "/linuxaudio/downloads/WAH-plugins-"
+                    version ".tar.bz2"))
+              (sha256
+               (base32
+                "1wkbjarxdhjixkh7d5abralj11dj2xxg644fz3ycd7qyfgfvjfgd"))))
+    (build-system gnu-build-system)
+    (arguments
+     `(#:tests? #f ; no "check" target
+       #:phases
+       (modify-phases %standard-phases
+         ;; no configure script
+         (delete 'configure)
+         (add-before 'install 'prepare-target-directory
+           (lambda* (#:key outputs #:allow-other-keys)
+             (mkdir-p (string-append (assoc-ref outputs "out") "/lib/ladspa"))
+             #t))
+         (add-after 'unpack 'override-target-directory
+           (lambda* (#:key outputs #:allow-other-keys)
+             (substitute* "Makefile"
+               (("/usr") (assoc-ref outputs "out")))
+             #t)))))
+    (home-page "http://kokkinizita.linuxaudio.org")
+    (synopsis "LADSPA Autowah effect plugin")
+    (description
+     "This package provides a LADSPA plugin for a Wah effect with envelope
+follower.")
+    (license license:gpl2+)))
+
+(define-public g2reverb
+  (package
+    (name "g2reverb")
+    (version "0.7.1")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append
+                    "http://kokkinizita.linuxaudio.org"
+                    "/linuxaudio/downloads/g2reverb-"
+                    version ".tar.bz2"))
+              (sha256
+               (base32
+                "18wb8vj1kky5glr76s34awbi8qzplsmf3wjbd7a12hfv4j0bkwrj"))))
+    (build-system gnu-build-system)
+    (arguments
+     `(#:tests? #f ; no "check" target
+       #:phases
+       (modify-phases %standard-phases
+         ;; no configure script
+         (delete 'configure)
+         (add-before 'install 'prepare-target-directory
+           (lambda* (#:key outputs #:allow-other-keys)
+             (mkdir-p (string-append (assoc-ref outputs "out") "/lib/ladspa"))
+             #t))
+         (add-after 'unpack 'override-target-directory
+           (lambda* (#:key outputs #:allow-other-keys)
+             (substitute* "Makefile"
+               (("/usr") (assoc-ref outputs "out")))
+             #t)))))
+    (home-page "http://kokkinizita.linuxaudio.org")
+    (synopsis "LADSPA stereo reverb plugin")
+    (description
+     "This package provides a LADSPA plugin for a stereo reverb effect.")
     (license license:gpl2+)))
 
 (define-public fluidsynth
@@ -802,7 +1127,6 @@ synchronous execution of all clients, and low latency operation.")
        ("suil" ,suil)
        ("gtk" ,gtk+-2)
        ("gtkmm" ,gtkmm-2)
-       ("qt" ,qt-4)
        ("jack" ,jack-1)))
     (native-inputs
      `(("pkg-config" ,pkg-config)))
@@ -945,6 +1269,34 @@ essential distortions.")
      "liblo is a lightweight library that provides an easy to use
 implementation of the Open Sound Control (OSC) protocol.")
     (license license:lgpl2.1+)))
+
+(define-public python-pyliblo
+  (package
+    (name "python-pyliblo")
+    (version "0.10.0")
+    (source (origin
+             (method url-fetch)
+             (uri (string-append "http://das.nasophon.de/download/pyliblo-"
+                                 version ".tar.gz"))
+             (sha256
+              (base32
+               "13vry6xhxm7adnbyj28w1kpwrh0kf7nw83cz1yq74wl21faz2rzw"))))
+    (build-system python-build-system)
+    (arguments `(#:tests? #f)) ;no tests
+    (inputs
+     `(("python-cython" ,python-cython)
+       ("liblo" ,liblo)))
+    (home-page "http://das.nasophon.de/pyliblo/")
+    (synopsis "Python bindings for liblo")
+    (description
+     "Pyliblo is a Python wrapper for the liblo Open Sound Control (OSC)
+library.  It supports almost the complete functionality of liblo, allowing you
+to send and receive OSC messages using a nice and simple Python API.  Also
+included are the command line utilities @code{send_osc} and @code{dump_osc}.")
+    (license license:lgpl2.1+)))
+
+(define-public python2-pyliblo
+  (package-with-python2 python-pyliblo))
 
 (define-public lilv
   (package
@@ -2032,4 +2384,40 @@ utility.  File formats are abstracted from its core, so it can process any file
 that contains WAVE data, compressed or not---provided there exists a format
 module to handle that particular file type.")
     (home-page "http://etree.org/shnutils/shntool/")
-    (license license:gpl3+)))
+    ;; 'install-sh' bears the x11 license
+    (license (list license:gpl2+ license:x11))))
+
+(define-public dcadec
+  (package
+    (name "dcadec")
+    (version "0.2.0")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "https://github.com/foo86/dcadec/archive/v"
+                                  version ".tar.gz"))
+              (file-name (string-append name "-" version ".tar.gz"))
+              (sha256
+               (base32
+                "0i0dpypgqkhhi4v1fmsp2way6w9kbcix3c7q79pmg39yvrzj17gd"))))
+    (build-system gnu-build-system)
+    (arguments
+     ;; Test files are missing: https://github.com/foo86/dcadec/issues/53
+     '(#:tests? #f
+       #:make-flags
+       (list "CC=gcc"
+             ;; Build shared library.
+             "CONFIG_SHARED=1"
+             (string-append "PREFIX=" (assoc-ref %outputs "out"))
+             ;; Set proper runpath.
+             (string-append "LDFLAGS=-Wl,-rpath="
+                            (assoc-ref %outputs "out")
+                            "/lib"))
+       #:phases
+       (modify-phases %standard-phases
+         ;; No configure script, just a hand-written Makefile.
+         (delete 'configure))))
+    (synopsis "DTS Coherent Acoustics decoder")
+    (description "Dcadec is a DTS Coherent Acoustics surround sound decoder
+with support for HD extensions.")
+    (home-page "https://github.com/foo86/dcadec")
+    (license license:lgpl2.1+)))

@@ -38,6 +38,7 @@
 
 (use-modules (guix config)
              (guix store)
+             (guix grafts)
              (guix packages)
              (guix derivations)
              (guix monads)
@@ -160,7 +161,7 @@ system.")
                        (set-guile-for-build (default-guile))
                        (system-disk-image installation-os
                                           #:disk-image-size
-                                          (* 860 MiB))))))
+                                          (* 1024 MiB))))))
       '()))
 
 (define (tarball-jobs store system)
@@ -248,27 +249,35 @@ valid."
                        %packages-to-cross-build))
                 (remove (either from-32-to-64? same?) %cross-targets)))
 
-  ;; Return one job for each package, except bootstrap packages.
-  (append-map (lambda (system)
-                (case subset
-                  ((all)
-                   ;; Build everything.
-                   (fold-packages (lambda (package result)
-                                    (let ((job (package->job store package
-                                                             system)))
-                                      (if job
-                                          (cons job result)
-                                          result)))
-                                  (append (qemu-jobs store system)
-                                          (tarball-jobs store system)
-                                          (cross-jobs system))))
-                  ((core)
-                   ;; Build core packages only.
-                   (append (map (lambda (package)
-                                  (package-job store (job-name package)
-                                               package system))
-                                %core-packages)
-                           (cross-jobs system)))
-                  (else
-                   (error "unknown subset" subset))))
-              %hydra-supported-systems))
+  ;; Turn off grafts.  Grafting is meant to happen on the user's machines.
+  (parameterize ((%graft? #f))
+    ;; Return one job for each package, except bootstrap packages.
+    (append-map (lambda (system)
+                  (case subset
+                    ((all)
+                     ;; Build everything, including replacements.
+                     (let ((all (fold-packages
+                                 (lambda (package result)
+                                   (if (package-replacement package)
+                                       (cons* package
+                                              (package-replacement package)
+                                              result)
+                                       (cons package result)))
+                                 '()))
+                           (job (lambda (package)
+                                  (package->job store package
+                                                system))))
+                       (append (filter-map job all)
+                               (qemu-jobs store system)
+                               (tarball-jobs store system)
+                               (cross-jobs system))))
+                    ((core)
+                     ;; Build core packages only.
+                     (append (map (lambda (package)
+                                    (package-job store (job-name package)
+                                                 package system))
+                                  %core-packages)
+                             (cross-jobs system)))
+                    (else
+                     (error "unknown subset" subset))))
+                %hydra-supported-systems)))

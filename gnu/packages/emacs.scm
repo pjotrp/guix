@@ -4,7 +4,8 @@
 ;;; Copyright © 2014, 2015 Mark H Weaver <mhw@netris.org>
 ;;; Copyright © 2014, 2015, 2016 Alex Kost <alezost@gmail.com>
 ;;; Copyright © 2015 Federico Beffa <beffa@fbengineering.ch>
-;;; Copyright © 2015 Ricardo Wurmus <rekado@elephly.net>
+;;; Copyright © 2015, 2016 Ricardo Wurmus <rekado@elephly.net>
+;;; Copyright © 2016 Nils Gillmann <niasterisk@grrlz.net>
 ;;;
 ;;; This file is part of GNU Guix.
 ;;;
@@ -307,7 +308,7 @@ when typing parentheses directly or commenting out code line by line.")
 (define-public git-modes
   (package
     (name "git-modes")
-    (version "1.2.0")
+    (version "1.2.1")
     (source (origin
               (method url-fetch)
               (uri (string-append
@@ -316,7 +317,7 @@ when typing parentheses directly or commenting out code line by line.")
               (file-name (string-append name "-" version ".tar.gz"))
               (sha256
                (base32
-                "09dv7ikbj2bi4y3lmvjfzqpdmx2f9bd4w7jkp10bkap62d05iqhk"))))
+                "088wyddh8y0yw77i0hx449n9zg4wzyc90h63wlmxba1ijg4dzm0p"))))
     (build-system gnu-build-system)
     (arguments
      `(#:modules ((guix build gnu-build-system)
@@ -349,10 +350,35 @@ when typing parentheses directly or commenting out code line by line.")
 configuration files, such as .gitattributes, .gitignore, and .git/config.")
     (license license:gpl3+)))
 
+(define-public emacs-with-editor
+  (package
+    (name "emacs-with-editor")
+    (version "2.5.0")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append
+                    "https://github.com/magit/with-editor/archive/v"
+                    version ".tar.gz"))
+              (file-name (string-append name "-" version ".tar.gz"))
+              (sha256
+               (base32
+                "19gb381z61l2icg5v5pymgi1a11g3zdp5aysl2j5fh7fxxg4d4c0"))))
+    (build-system emacs-build-system)
+    (propagated-inputs
+     `(("emacs-dash" ,emacs-dash)))
+    (home-page "https://github.com/magit/with-editor")
+    (synopsis "Emacs library for using Emacsclient as EDITOR")
+    (description
+     "This package provides an Emacs library to use the Emacsclient as
+@code{$EDITOR} of child processes, making sure they know how to call home.
+For remote processes a substitute is provided, which communicates with Emacs
+on stdout instead of using a socket as the Emacsclient does.")
+    (license license:gpl3+)))
+
 (define-public magit
   (package
     (name "magit")
-    (version "2.4.0")
+    (version "2.5.0")
     (source (origin
              (method url-fetch)
              (uri (string-append
@@ -360,12 +386,14 @@ configuration files, such as .gitattributes, .gitignore, and .git/config.")
                    version "/" name "-" version ".tar.gz"))
              (sha256
               (base32
-               "1wbam4l36061mj79qlgzrv4xbzhk2dk6gnv45610zwfnf24ikdsp"))))
+               "0i6qpx5szzc4kyfcdhaic8gif0sqdqcya1niyj93lpvw66jcxsxa"))))
     (build-system gnu-build-system)
     (native-inputs `(("texinfo" ,texinfo)
                      ("emacs" ,emacs-no-x)))
     (inputs `(("git" ,git)))
-    (propagated-inputs `(("dash" ,emacs-dash)))
+    (propagated-inputs
+     `(("dash" ,emacs-dash)
+       ("with-editor" ,emacs-with-editor)))
     (arguments
      `(#:modules ((guix build gnu-build-system)
                   (guix build utils)
@@ -383,7 +411,11 @@ configuration files, such as .gitattributes, .gitignore, and .git/config.")
              (string-append "DASH_DIR="
                             (assoc-ref %build-inputs "dash")
                             "/share/emacs/site-lisp/guix.d/dash-"
-                            ,(package-version emacs-dash)))
+                            ,(package-version emacs-dash))
+             (string-append "WITH_EDITOR_DIR="
+                            (assoc-ref %build-inputs "with-editor")
+                            "/share/emacs/site-lisp/guix.d/with-editor-"
+                            ,(package-version emacs-with-editor)))
 
        #:phases
        (modify-phases %standard-phases
@@ -890,6 +922,27 @@ like.  It can be linked with various Emacs mail clients (Message and Mail
 mode, Rmail, Gnus, MH-E, and VM).  BBDB is fully customizable.")
     (license license:gpl3+)))
 
+(define-public emacs-async
+  (package
+    (name "emacs-async")
+    (version "1.6")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "http://elpa.gnu.org/packages/async-"
+                                  version ".tar"))
+              (sha256
+               (base32
+                "17psvz75n42x33my967wkgi7r0blx46n3jdv510j0z5jswv66039"))))
+    (build-system emacs-build-system)
+    (home-page "http://elpa.gnu.org/packages/async.html")
+    (synopsis "Asynchronous processing in Emacs")
+    (description
+     "This package provides the ability to call asynchronous functions and
+processes.  For example, it can be used to run dired commands (for copying,
+moving, etc.) asynchronously using @code{dired-async-mode}.  Also it is used
+as a library for other Emacs packages.")
+    (license license:gpl3+)))
+
 (define-public emacs-auctex
   (package
     (name "emacs-auctex")
@@ -965,44 +1018,47 @@ single buffer.")
     (arguments
      `(#:tests? #f ; there are no tests
        #:modules ((guix build gnu-build-system)
+                  ((guix build emacs-build-system) #:prefix emacs:)
                   (guix build utils)
                   (guix build emacs-utils))
        #:imported-modules (,@%gnu-build-system-modules
+                           (guix build emacs-build-system)
                            (guix build emacs-utils))
        #:phases
        (modify-phases %standard-phases
-         (add-after 'unpack 'enter-dir (lambda _ (chdir "server") #t))
-         (add-before
-          'configure 'autogen
-          (lambda _
-            (zero? (system* "bash" "autogen.sh"))))
-         (add-before
-          'build 'patch-variables
-          (lambda* (#:key outputs #:allow-other-keys)
-            (with-directory-excursion "../lisp"
-              ;; Set path to epdfinfo program.
-              (emacs-substitute-variables "pdf-info.el"
-                ("pdf-info-epdfinfo-program"
-                 (string-append (assoc-ref outputs "out")
-                                "/bin/epdfinfo")))
-              ;; Set 'pdf-tools-handle-upgrades' to nil to avoid "auto
-              ;; upgrading" that pdf-tools tries to perform.
-              (emacs-substitute-variables "pdf-tools.el"
-                ("pdf-tools-handle-upgrades" '())))))
-         (add-after
-          'install 'install-lisp
-          (lambda* (#:key outputs #:allow-other-keys)
-            (let ((target (string-append (assoc-ref outputs "out")
-                                         "/share/emacs/site-lisp/")))
-              (for-each (lambda (file)
-                          (install-file file target))
-                        (find-files "../lisp" "^(pdf|tab).*\\.elc?"))
-              (emacs-byte-compile-directory target)
-              (emacs-generate-autoloads "pdf-tools" target)))))))
+         ;; Build server side using 'gnu-build-system'.
+         (add-after 'unpack 'enter-server-dir
+           (lambda _ (chdir "server") #t))
+         (add-before 'configure 'autogen
+           (lambda _
+             (zero? (system* "bash" "autogen.sh"))))
+
+         ;; Build emacs side using 'emacs-build-system'.
+         (add-after 'compress-documentation 'enter-lisp-dir
+           (lambda _ (chdir "../lisp") #t))
+         (add-after 'enter-lisp-dir 'emacs-patch-variables
+           (lambda* (#:key outputs #:allow-other-keys)
+             ;; Set path to epdfinfo program.
+             (emacs-substitute-variables "pdf-info.el"
+               ("pdf-info-epdfinfo-program"
+                (string-append (assoc-ref outputs "out")
+                               "/bin/epdfinfo")))
+             ;; Set 'pdf-tools-handle-upgrades' to nil to avoid "auto
+             ;; upgrading" that pdf-tools tries to perform.
+             (emacs-substitute-variables "pdf-tools.el"
+               ("pdf-tools-handle-upgrades" '()))))
+         (add-after 'emacs-patch-variables 'emacs-install
+           (assoc-ref emacs:%standard-phases 'install))
+         (add-after 'emacs-install 'emacs-build
+           (assoc-ref emacs:%standard-phases 'build))
+         (add-after 'emacs-install 'emacs-make-autoloads
+           (assoc-ref emacs:%standard-phases 'make-autoloads)))))
     (native-inputs `(("autoconf" ,autoconf)
                      ("automake" ,automake)
                      ("pkg-config" ,pkg-config)
                      ("emacs" ,emacs-no-x)))
+    (propagated-inputs
+     `(("let-alist" ,let-alist)))
     (inputs `(("poppler" ,poppler)
               ("cairo" ,cairo)
               ("glib" ,glib)
@@ -1136,15 +1192,17 @@ source code using IPython.")
 (define-public emacs-debbugs
   (package
     (name "emacs-debbugs")
-    (version "0.7")
+    (version "0.9")
     (source (origin
               (method url-fetch)
               (uri (string-append "http://elpa.gnu.org/packages/debbugs-"
                                   version ".tar"))
               (sha256
                (base32
-                "0pbglx3paa8icazgxlg4jf40wl8war63y9j2jmbb7gbd1xp95v72"))))
+                "1wc6kw7hihqqdx8qyl01akygycnan44x400hwrcf54m3hb4isa0k"))))
     (build-system emacs-build-system)
+    (propagated-inputs
+     `(("emacs-async" ,emacs-async)))
     (home-page "http://elpa.gnu.org/packages/debbugs.html")
     (synopsis "Access the Debbugs bug tracker in Emacs")
     (description
@@ -1398,3 +1456,54 @@ supports editing Lisp source files, @{slime-mode} adds support for
 interacting with a running Common Lisp process for compilation,
 debugging, documentation lookup, and so on.")
     (license license:gpl2+)))
+
+(define-public emacs-popup
+  (package
+    (name "emacs-popup")
+    (version "0.5.3")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append
+                    "https://github.com/auto-complete/popup-el/archive/v"
+                    version ".tar.gz"))
+              (file-name (string-append name "-" version ".tar.gz"))
+              (sha256
+               (base32
+                "1yrgfj8y69xmcb6kwgplhq68ndm9410qwh7sd2knnd1gchpphdc0"))))
+    (build-system emacs-build-system)
+    (native-inputs
+     `(("emacs" ,emacs-no-x)))
+    (home-page "https://github.com/auto-complete/popup-el")
+    (synopsis "Visual Popup User Interface for Emacs")
+    (description
+     "Popup.el is a visual popup user interface library for Emacs.
+This provides a basic API and common UI widgets such as popup tooltips
+and popup menus.")
+    (license license:gpl3+)))
+
+(define-public emacs-god-mode
+  (let ((commit "6cf0807b6555eb6fcf8387a4e3b667071ef38964")
+        (revision "1"))
+    (package
+      (name "emacs-god-mode")
+      (version (string-append "20151005.925."
+                              revision "-" (string-take commit 9)))
+      (source
+       (origin
+         (method git-fetch)
+         (uri (git-reference
+               (url "https://github.com/chrisdone/god-mode.git")
+               (commit commit)))
+         (file-name (string-append name "-" version "-checkout"))
+         (sha256
+          (base32
+           "1am415k4xxcva6y3vbvyvknzc6bma49pq3p85zmpjsdmsp18qdix"))))
+      (build-system emacs-build-system)
+      (home-page "https://github.com/chrisdone/god-mode")
+      (synopsis "Minor mode for entering commands without modifier keys")
+      (description
+       "This package provides a global minor mode for entering Emacs commands
+without modifier keys.  It's similar to Vim's separation of commands and
+insertion mode.  When enabled all keys are implicitly prefixed with
+@samp{C-} (among other helpful shortcuts).")
+      (license license:gpl3+))))

@@ -2,7 +2,7 @@
 ;;; Copyright © 2013, 2014, 2015, 2016 Ludovic Courtès <ludo@gnu.org>
 ;;; Copyright © 2013, 2015 Andreas Enge <andreas@enge.fr>
 ;;; Copyright © 2013 Nikita Karetnikov <nikita@karetnikov.org>
-;;; Copyright © 2014, 2015 Mark H Weaver <mhw@netris.org>
+;;; Copyright © 2014, 2015, 2016 Mark H Weaver <mhw@netris.org>
 ;;; Copyright © 2016 Efraim Flashner <efraim@flashner.co.il>
 ;;;
 ;;; This file is part of GNU Guix.
@@ -61,14 +61,15 @@
     (name "dbus")
     (version "1.10.0")
     (source (origin
-              ;; TODO: Apply patch from DBUS/ACTIVATION below.
               (method url-fetch)
               (uri (string-append
-                    "http://dbus.freedesktop.org/releases/dbus/dbus-"
+                    "https://dbus.freedesktop.org/releases/dbus/dbus-"
                     version ".tar.gz"))
               (sha256
                (base32
-                "0jwj7wlrhq5y0fwfh8k2d9rgdpfax06lj8698g6iqbwrzd2rgyqx"))))
+                "0jwj7wlrhq5y0fwfh8k2d9rgdpfax06lj8698g6iqbwrzd2rgyqx"))
+              (patches
+               (list (search-patch "dbus-helper-search-path.patch")))))
     (build-system gnu-build-system)
     (arguments
      '(#:configure-flags
@@ -125,17 +126,6 @@ daemon).  Currently the communicating applications are on one computer,
 or through unencrypted TCP/IP suitable for use behind a firewall with
 shared NFS home directories.")
     (license license:gpl2+)))                     ; or Academic Free License 2.1
-
-(define-public dbus/activation
-  ;; D-Bus with a patch to fix service activation.
-  ;; TODO: Merge with DBUS above.
-  (package
-    (inherit dbus)
-    (version (string-append (package-version dbus) ".a"))
-    (source (origin
-              (inherit (package-source dbus))
-              (patches
-               (list (search-patch "dbus-helper-search-path.patch")))))))
 
 (define glib
   (package
@@ -384,7 +374,7 @@ translated.")
     (source (origin
              (method url-fetch)
              (uri
-              (string-append "http://dbus.freedesktop.org/releases/dbus-glib/dbus-glib-"
+              (string-append "https://dbus.freedesktop.org/releases/dbus-glib/dbus-glib-"
                              version ".tar.gz"))
              (sha256
               (base32
@@ -534,9 +524,11 @@ useful for C++.")
        ("pkg-config" ,pkg-config)))
     (inputs
      `(("python" ,python)
-       ("glib"   ,glib)
        ("python-pycairo" ,python-pycairo)
-       ("gobject-introspection" ,gobject-introspection)
+       ("gobject-introspection" ,gobject-introspection)))
+    (propagated-inputs
+     ;; pygobject-3.0.pc refers to all these.
+     `(("glib" ,glib)
        ("libffi" ,libffi)))
     (arguments
      ;; TODO: failing tests: test_native_calls_async
@@ -548,6 +540,8 @@ useful for C++.")
      ;; test_callback_user_data_middle_single
      ;; test_callback_user_data_middle_tuple
      '(#:tests? #f))
+    ;; For finding typelib files, since gobject-introscpetion isn't propagated.
+    (native-search-paths (package-native-search-paths gobject-introspection))
     (home-page "https://live.gnome.org/PyGObject")
     (synopsis "Python bindings for GObject")
     (description
@@ -560,10 +554,8 @@ useful for C++.")
     (name "python2-pygobject")
     (inputs
      `(("python" ,python-2)
-       ("glib" ,glib)
        ("python-pycairo" ,python2-pycairo)
-       ("gobject-introspection" ,gobject-introspection)
-       ("libffi" ,libffi)))))
+       ("gobject-introspection" ,gobject-introspection)))))
 
 (define telepathy-glib
   (package
@@ -574,7 +566,7 @@ useful for C++.")
       (method url-fetch)
        (uri
         (string-append
-         "http://telepathy.freedesktop.org/releases/telepathy-glib/"
+         "https://telepathy.freedesktop.org/releases/telepathy-glib/"
          "telepathy-glib-" version ".tar.gz"))
        (sha256
         (base32
